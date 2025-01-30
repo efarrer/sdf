@@ -10,6 +10,17 @@
 ## GraphQL Users
 Checkout my company [Inigo](https://www.inigo.io) for the best holistic platform for your api.
 
+## About this fork
+This fork is based off of the excellent https://github.com/ejoffe/spr.
+
+This repo has the following **features** that have not been merged into the ejoffe/spr repo:
+1. Flag to delete the remove branches after a merge. See `deleteMergedBranches` below.
+
+This repo has the following **bug fixes** that have not been merged into the ejoffe/spr repo:
+1. Merging PRs no longer creates PRs for local commits that did not already have PRs.
+2. Updating test mocks to enable stricter unit tests and fix several unit tests bugs that were revealed by the stricter
+   tests.
+
 # Stacked Pull Requests on GitHub
 
 Easily manage stacks of pull requests on GitHub. 
