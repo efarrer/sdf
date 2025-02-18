@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/ejoffe/spr/bl/gitapi"
 	"github.com/ejoffe/spr/bl/maputils"
 	"github.com/ejoffe/spr/config"
@@ -42,7 +43,8 @@ type PRCommit struct {
 // State holds the state of the local commits and PRs
 type State struct {
 	// The 0th commit in this slice is the HEAD commit
-	Commits []*PRCommit
+	Commits     []*PRCommit
+	OrphanedPRs mapset.Set[*github.PullRequest]
 }
 
 type PullRequestStatus struct {
@@ -193,12 +195,35 @@ func NewState(
 
 	prMap := GeneratePullRequestMap(prss)
 	gitCommits := GenerateCommits(config, commits)
-	for _, gitCommit := range gitCommits {
-		gitCommit.PullRequest = prMap[gitCommit.CommitID]
-	}
+
+	orphanedPRs := AssignPullRequests(gitCommits, prMap)
+
 	SetStackedCheck(config, gitCommits)
 
-	return &State{Commits: gitCommits}, nil
+	return &State{
+		Commits:     gitCommits,
+		OrphanedPRs: orphanedPRs,
+	}, nil
+}
+
+func AssignPullRequests(
+	gitCommits []*PRCommit,
+	prMap map[string]*github.PullRequest,
+) mapset.Set[*github.PullRequest] {
+	prGCMap := maputils.NewGC(prMap)
+
+	for _, gitCommit := range gitCommits {
+		if pr, ok := prGCMap.Lookup(gitCommit.CommitID); ok {
+			gitCommit.PullRequest = pr
+		}
+	}
+
+	orphanedPrs := mapset.NewSet[*github.PullRequest]()
+	for _, v := range prGCMap.GetUnaccessed() {
+		orphanedPrs.Add(v)
+	}
+
+	return orphanedPrs
 }
 
 func SetStackedCheck(config *config.Config, gitCommits []*PRCommit) {

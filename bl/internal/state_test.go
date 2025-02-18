@@ -3,6 +3,8 @@ package internal_test
 import (
 	"testing"
 
+	mapset "github.com/deckarep/golang-set/v2"
+	"github.com/ejoffe/spr/bl/internal"
 	bl "github.com/ejoffe/spr/bl/internal"
 	"github.com/ejoffe/spr/config"
 	"github.com/ejoffe/spr/git"
@@ -12,6 +14,52 @@ import (
 	gogithub "github.com/google/go-github/v69/github"
 	"github.com/stretchr/testify/require"
 )
+
+func TestAssignPullRequests(t *testing.T) {
+	gitCommits := []*internal.PRCommit{
+		{
+			Commit: git.Commit{
+				CommitID: "11111111",
+			},
+		},
+		{
+			Commit: git.Commit{
+				CommitID: "22222222",
+			},
+		},
+		{
+			Commit: git.Commit{
+				CommitID: "33333333",
+			},
+		},
+	}
+
+	prMap := map[string]*github.PullRequest{
+		"11111111": {
+			ID: "1",
+		},
+		"22222222": {
+			ID: "2",
+		},
+		"99999999": {
+			ID: "9",
+		},
+	}
+
+	expectedOrphanedPRs := mapset.NewSet[*github.PullRequest]()
+	expectedOrphanedPRs.Add(prMap["99999999"])
+
+	orphanedPRs := internal.AssignPullRequests(gitCommits, prMap)
+
+	// The PR is set
+	require.Equal(t, "1", gitCommits[0].PullRequest.ID)
+	require.Equal(t, "2", gitCommits[1].PullRequest.ID)
+	require.Nil(t, gitCommits[2].PullRequest)
+
+	// The extra PR is returned as orphaned
+	require.Equal(t, expectedOrphanedPRs, orphanedPRs)
+
+}
 
 func TestSetStackedCheck(t *testing.T) {
 	config := &config.Config{
