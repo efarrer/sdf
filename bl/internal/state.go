@@ -44,8 +44,9 @@ type PRCommit struct {
 // State holds the state of the local commits and PRs
 type State struct {
 	// The 0th commit in this slice is the HEAD commit
-	Commits     []*PRCommit
-	OrphanedPRs mapset.Set[*github.PullRequest]
+	Commits       []*PRCommit
+	OrphanedPRs   mapset.Set[*github.PullRequest]
+	MutatedPRSets mapset.Set[int]
 }
 
 type PullRequestStatus struct {
@@ -219,8 +220,9 @@ func NewState(
 	SetStackedCheck(config, gitCommits)
 
 	return &State{
-		Commits:     gitCommits,
-		OrphanedPRs: orphanedPRs,
+		Commits:       gitCommits,
+		OrphanedPRs:   orphanedPRs,
+		MutatedPRSets: mapset.NewSet[int](),
 	}, nil
 }
 
@@ -284,6 +286,68 @@ func (s *State) String() string {
 		res = append(res, fmt.Sprintf("%p:%#v", cm, *cm))
 	}
 	return strings.Join(res, ",\n")
+}
+
+// ApplyIndices applies the commits in state and updates the State's mutatedPRSets
+func (s *State) ApplyIndices(destinationPRIndex *int, commitIndexes mapset.Set[int]) {
+	// If we're assigning 0 commits to a new PR (destinationPRIndex == nil) then do nothing
+	if destinationPRIndex == nil && commitIndexes.Cardinality() == 0 {
+		return
+	}
+	// If destinationPRIndex is null find the next available PR index and update destinationPRIndex
+	if destinationPRIndex == nil {
+		nextDestinationPRIndex := 0
+		for _, cm := range s.Commits {
+			if cm.PRIndex != nil && *cm.PRIndex >= nextDestinationPRIndex {
+				nextDestinationPRIndex = *cm.PRIndex + 1
+			}
+		}
+
+		destinationPRIndex = &nextDestinationPRIndex
+	}
+
+	// iterate over the commits and update the PRIndex for all matching commitIndex
+	// clear the PRs for existing PRs that are in the PRIndex but not in the commitIndex
+	for _, cm := range s.Commits {
+		shouldBeInPrSet := commitIndexes.Contains(cm.Index)
+		isInPrSet := cm.PRIndex != nil && *cm.PRIndex == *destinationPRIndex
+
+		// If the commit is already in the PR set and it should be in the PR set then we are done
+		if isInPrSet && shouldBeInPrSet {
+			continue
+		}
+		// If the commit is **not** already in the PR set and it should **not** be in the PR set then we are done
+		if !isInPrSet && !shouldBeInPrSet {
+			continue
+		}
+		// If the commit is already in the PR set and it should **not** be then we need to clear the PR
+		if isInPrSet && !shouldBeInPrSet {
+			s.OrphanedPRs.Add(cm.PullRequest)
+			s.MutatedPRSets.Add(*destinationPRIndex)
+			cm.PRIndex = nil
+			continue
+		}
+
+		// If the commit is **not** already in the PR set and it should be then we need to set PR
+		if !isInPrSet && shouldBeInPrSet {
+			// If we are replacing another PR then both the old and the new PR sets were mutated
+			if cm.PRIndex != nil {
+				s.MutatedPRSets.Add(*cm.PRIndex)
+			}
+			s.MutatedPRSets.Add(*destinationPRIndex)
+			cm.PRIndex = destinationPRIndex
+		}
+	}
+
+	// It is possible to mutate a PR set out of existence. So purge any in the MutatedPRSets that no longer exist.
+	existingPRSets := mapset.NewSet[int]()
+	for _, cm := range s.Commits {
+		if cm.PRIndex == nil {
+			continue
+		}
+		existingPRSets.Add(*cm.PRIndex)
+	}
+	s.MutatedPRSets = s.MutatedPRSets.Intersect(existingPRSets)
 }
 
 func GeneratePullRequestMap(prss []PullRequestStatus) map[string]*github.PullRequest {
