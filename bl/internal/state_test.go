@@ -15,6 +15,72 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestFindParentCommitInPRSet(t *testing.T) {
+	ci3 := internal.PRCommit{
+		Commit: git.Commit{
+			CommitID: "33333333",
+		},
+		Index: 3,
+	}
+	ci2 := internal.PRCommit{
+		Commit: git.Commit{
+			CommitID: "22222222",
+		},
+		Index: 2,
+	}
+	ci1 := internal.PRCommit{
+		Commit: git.Commit{
+			CommitID: "11111111",
+		},
+		Index: 1,
+	}
+	ci0 := internal.PRCommit{
+		Commit: git.Commit{
+			CommitID: "00000000",
+		},
+		Index: 0,
+	}
+
+	ci0.Parent = &ci1
+	ci1.Parent = &ci2
+	ci2.Parent = &ci3
+
+	tests := []struct {
+		desc     string
+		commit   *internal.PRCommit
+		prSet    mapset.Set[int]
+		expected *internal.PRCommit
+	}{
+		{
+			desc:     "all in PR set",
+			commit:   &ci0,
+			prSet:    mapset.NewSet[int](0, 1, 2, 3),
+			expected: &ci1,
+		}, {
+			desc:     "top and bottom in PR set",
+			commit:   &ci0,
+			prSet:    mapset.NewSet[int](0, 3),
+			expected: &ci3,
+		}, {
+			desc:     "no parent in PR set",
+			commit:   &ci0,
+			prSet:    mapset.NewSet[int](0),
+			expected: nil,
+		}, {
+			desc:     "no parent at all",
+			commit:   &ci3,
+			prSet:    mapset.NewSet[int](0, 1, 2, 3),
+			expected: nil,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			require.Equal(t, test.expected, test.commit.FindParentCommitInPRSet(test.prSet))
+		})
+	}
+}
+
 func TestAssignPullRequests(t *testing.T) {
 	gitCommits := []*internal.PRCommit{
 		{
@@ -211,6 +277,89 @@ func TestApplyIndicies(t *testing.T) {
 			require.Equal(t, test.expectedState(), state)
 		})
 	}
+}
+
+func TestCommitsByPRSet(t *testing.T) {
+	// Define the PRs here so the pointer value will be consistent between calls of testingState
+	// this allow us to compare sets containing &github.PullRequest
+	pr0 := &github.PullRequest{ID: "0"}
+	pr1 := &github.PullRequest{ID: "1"}
+	pr2 := &github.PullRequest{ID: "2"}
+	pr3 := &github.PullRequest{ID: "3"}
+	testingState := internal.State{
+		Commits: []*internal.PRCommit{
+			{
+				Index:       0,
+				PRIndex:     gogithub.Ptr(0),
+				PullRequest: pr0,
+			},
+			{
+				Index:       1,
+				PRIndex:     gogithub.Ptr(0),
+				PullRequest: pr1,
+			},
+			{
+				Index:       2,
+				PRIndex:     gogithub.Ptr(1),
+				PullRequest: pr2,
+			},
+			{
+				Index:       3,
+				PRIndex:     gogithub.Ptr(2),
+				PullRequest: pr3,
+			},
+			{
+				Index: 4,
+			},
+		},
+	}
+
+	prSetToCommits := testingState.CommitsByPRSet()
+	require.Equal(t, 0, prSetToCommits[0][0].Index)
+	require.Equal(t, 1, prSetToCommits[0][1].Index)
+	require.Equal(t, 2, prSetToCommits[1][0].Index)
+	require.Equal(t, 3, prSetToCommits[2][0].Index)
+	require.Nil(t, prSetToCommits[3])
+}
+
+func TestPullRequests(t *testing.T) {
+	pr0 := &github.PullRequest{ID: "0"}
+	pr1 := &github.PullRequest{ID: "1"}
+	pr2 := &github.PullRequest{ID: "2"}
+	pr3 := &github.PullRequest{ID: "3"}
+	testingState := internal.State{
+		Commits: []*internal.PRCommit{
+			{
+				Index:       0,
+				PRIndex:     gogithub.Ptr(0),
+				PullRequest: pr0,
+			},
+			{
+				Index:       1,
+				PRIndex:     gogithub.Ptr(0),
+				PullRequest: pr1,
+			},
+			{
+				Index:       2,
+				PRIndex:     gogithub.Ptr(1),
+				PullRequest: pr2,
+			},
+			{
+				Index:       3,
+				PRIndex:     gogithub.Ptr(2),
+				PullRequest: pr3,
+			},
+			{
+				Index: 4,
+			},
+		},
+	}
+
+	expectedPullRequests := []*github.PullRequest{
+		pr0, pr1, pr2, pr3,
+	}
+	pullRequests := testingState.PullRequests()
+	require.Equal(t, expectedPullRequests, pullRequests)
 }
 
 func TestGeneratePullRequestMap(t *testing.T) {

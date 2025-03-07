@@ -17,6 +17,9 @@ import (
 	"github.com/ejoffe/profiletimer"
 	"github.com/ejoffe/rake"
 	"github.com/ejoffe/spr/bl"
+	"github.com/ejoffe/spr/bl/concurrent"
+	"github.com/ejoffe/spr/bl/gitapi"
+	"github.com/ejoffe/spr/bl/selector"
 	"github.com/ejoffe/spr/config"
 	"github.com/ejoffe/spr/config/config_parser"
 	"github.com/ejoffe/spr/git"
@@ -363,9 +366,91 @@ func (sd *stackediff) MergePullRequests(ctx context.Context, count *uint) {
 	sd.profiletimer.Step("MergePullRequests::End")
 }
 
+func (sd *stackediff) UpdatePRSets(ctx context.Context, sel string) {
+	gitapi := gitapi.New(sd.config, sd.repo, sd.goghclient)
+
+	// Add the commit-id to any commits that don't have it yet.
+	gitapi.AppendCommitId()
+
+	state, err := bl.NewReadState(ctx, sd.config, sd.goghclient, sd.repo)
+	check(err)
+
+	// Compute the indices that will be included in the updated PR
+	indices, err := selector.Evaluate(state.Commits, sel)
+	check(err)
+
+	// Update the commits PRIndex and tracked orphaned and mutated PR sets.
+	state.ApplyIndices(indices.DestinationPRIndex, indices.CommitIndexes)
+
+	// Delete orphaned PRs (along with the associated branches)
+	_, err = concurrent.SliceMap(state.OrphanedPRs.ToSlice(), func(pr *github.PullRequest) (bool, error) {
+		err := gitapi.DeletePullRequest(ctx, pr)
+		return true, err
+	})
+	check(err)
+	state.OrphanedPRs.Clear()
+
+	// Update all branches even if the PR set wasn't mutated (just in case there was a rebase)
+	commitsByPrSet := state.CommitsByPRSet()
+	for _, cis := range commitsByPrSet {
+		// Destination branch starts with the "main" branch.
+		destBranchName := sd.config.Repo.GitHubBranch
+
+		// The first cid is the top (committed last) we need to create the branch for the last one first as that is what
+		// will be merged into the main branch first then build on that one for the subsequent commits.
+		for c := len(cis) - 1; c >= 0; c-- {
+			branchName := git.BranchNameFromCommitId(sd.config, cis[c].CommitID)
+			err = gitapi.CreateRemoteBranchWithCherryPick(ctx, branchName, destBranchName, cis[c].CommitHash)
+			check(err)
+			destBranchName = branchName
+		}
+	}
+
+	// Create new PRs that are missing for the impacted PR set
+	// For now we just create a PR simple PR without linking PRs to each other as but there could be other missing PRs so
+	// we can't link to a missing PR. Once all PRs have been created we will update them
+	for _, ci := range state.Commits {
+		if !indices.CommitIndexes.Contains(ci.Index) {
+			continue
+		}
+		if ci.PullRequest != nil {
+			continue
+		}
+		parentCommit := ci.FindParentCommitInPRSet(indices.CommitIndexes)
+
+		gitapi.CreatePullRequest(ctx, ci.Commit, &parentCommit.Commit)
+	}
+
+	/*
+		//pullRequests := state.PullRequests()
+			_ = pullRequests
+			for _, ci := range state.Commits {
+				if ci.PullRequest == nil {
+					var parentCommit *git.Commit
+					if ci.Parent != nil {
+						parentCommit = &ci.Parent.Commit
+					}
+					//sd.github.UpdatePullRequest(ctx, sd.gitcmd, repositoryId, pllRequests, ci.Commit, parentCommit)
+				}
+			}*/
+
+	// DONE 1. update the state.Commits by mutating the PRIndex
+	//        state.UpdateState(indicies)
+	// DONE 2. track which PR sets were impacted so we can skip updating the others.
+	// DONE 3. delete orphaned PRs (along with the associated branches)
+	// DONE 4. update all branches (in case of a rebase).
+	// XXX block
+	// XXX 5. create new PRs where missing
+	// XXX block
+	// XXX 6. update all PRs for all PR sets that were impacted
+	// XXX 7 Update .spr.state
+
+}
+
 func (sd *stackediff) StatusCommitsAndPRSets(ctx context.Context) {
 	state, err := bl.NewReadState(ctx, sd.config, sd.goghclient, sd.repo)
 	check(err)
+	fmt.Printf("XXXXXXXXXX CIC CI 0 %v\n", state.Commits[0].Index)
 
 	if state.Head() == nil {
 		fmt.Fprintf(sd.output, "no local commits\n")

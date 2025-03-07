@@ -109,6 +109,18 @@ func (prc PRCommit) String(config *config.Config) string {
 	return github.TrimToTerminal(config, line)
 }
 
+// FindParentCommit finds the parent commit in the PR set.
+// The prSetIndexes contains the indices (PRConmmit.Index) of all commits in the PRSet
+// Returns nil if no parent exists
+func (prc PRCommit) FindParentCommitInPRSet(prSetIndexes mapset.Set[int]) *PRCommit {
+	for parentCommit := prc.Parent; parentCommit != nil; parentCommit = parentCommit.Parent {
+		if prSetIndexes.Contains(parentCommit.Index) {
+			return parentCommit
+		}
+	}
+	return nil
+}
+
 // Generic function to convert a nil pointer to its zero value.
 // Works for any type.
 func derefOrDefault[T any](ptr *T) T {
@@ -348,6 +360,34 @@ func (s *State) ApplyIndices(destinationPRIndex *int, commitIndexes mapset.Set[i
 		existingPRSets.Add(*cm.PRIndex)
 	}
 	s.MutatedPRSets = s.MutatedPRSets.Intersect(existingPRSets)
+}
+
+// CommitsByPRSet returns the commits by PR set with the newest commits are first
+func (s *State) CommitsByPRSet() map[int][]*PRCommit {
+	commits := map[int][]*PRCommit{}
+
+	for _, ci := range s.Commits {
+		if ci.PRIndex == nil {
+			continue
+		}
+
+		if _, ok := commits[*ci.PRIndex]; !ok {
+			commits[*ci.PRIndex] = []*PRCommit{}
+		}
+		commits[*ci.PRIndex] = append(commits[*ci.PRIndex], ci)
+	}
+
+	return commits
+}
+
+func (s *State) PullRequests() []*github.PullRequest {
+	pullRequests := make([]*github.PullRequest, 0, len(s.Commits))
+	for _, ci := range s.Commits {
+		if ci.PullRequest != nil {
+			pullRequests = append(pullRequests, ci.PullRequest)
+		}
+	}
+	return pullRequests
 }
 
 func GeneratePullRequestMap(prss []PullRequestStatus) map[string]*github.PullRequest {
