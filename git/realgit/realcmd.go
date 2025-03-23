@@ -3,6 +3,7 @@ package realgit
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -41,6 +42,7 @@ func NewGitCmd(cfg *config.Config) *gitcmd {
 		config:  cfg,
 		repo:    repo,
 		rootdir: rootdir,
+		stderr:  os.Stderr,
 	}
 }
 
@@ -62,6 +64,7 @@ type gitcmd struct {
 	config  *config.Config
 	repo    *gogit.Repository
 	rootdir string
+	stderr  io.Writer
 }
 
 func (c *gitcmd) Git(argStr string, output *string) error {
@@ -111,13 +114,13 @@ func (c *gitcmd) GitWithEditor(argStr string, output *string, editorCmd string) 
 		out, err := cmd.CombinedOutput()
 		*output = strings.TrimSpace(string(out))
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "git error: %s", string(out))
+			fmt.Fprintf(c.stderr, "git error: %s", string(out))
 			return err
 		}
 	} else {
 		out, err := cmd.CombinedOutput()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "git error: %s", string(out))
+			fmt.Fprintf(c.stderr, "git error: %s", string(out))
 			return err
 		}
 	}
@@ -126,6 +129,14 @@ func (c *gitcmd) GitWithEditor(argStr string, output *string, editorCmd string) 
 
 func (c *gitcmd) RootDir() string {
 	return c.rootdir
+}
+
+func (c *gitcmd) SetRootDir(newroot string) {
+	c.rootdir = newroot
+}
+
+func (c *gitcmd) SetStderr(stderr io.Writer) {
+	c.stderr = stderr
 }
 
 func (c *gitcmd) DeleteRemoteBranch(ctx context.Context, branch string) error {
