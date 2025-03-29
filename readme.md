@@ -13,13 +13,45 @@ Checkout my company [Inigo](https://www.inigo.io) for the best holistic platform
 ## About this fork
 This fork is based off of the excellent https://github.com/ejoffe/spr.
 
-This repo has the following **features** that have not been merged into the ejoffe/spr repo:
-1. Flag to delete the remove branches after a merge. See `deleteMergedBranches` below.
+It supports the concept of PR sets. PR sets are an experimental with features that might change and might have bugs. A
+PR set allows developers to work on separate features within a single branch. This allows many changes to all be done on
+the main/master branch. For example if a developer is working on two projects they could have the following commits
+(newest first) on the main/master branch.
 
-This repo has the following **bug fixes** that have not been merged into the ejoffe/spr repo:
-1. Merging PRs no longer creates PRs for local commits that did not already have PRs.
-2. Updating test mocks to enable stricter unit tests and fix several unit tests bugs that were revealed by the stricter
-   tests.
+* 4 Finish project #2
+* 3 Start project #2
+* 2 Finish project #1
+* 1 Unrelated bug fix
+* 0 Start project #1
+
+With PR sets the 0th, and 2nd commit could be added to one PR set (marked s0). The 1st commit could be added to a second PR set (marked s1). The
+3rd and 4th commits could be added to a third PR set (marked s2). Each PR set could be reviewed and merged independently just like
+if they were all on their own branches. For example:
+
+* 4 s2 Finish project #2
+* 3 s2 Start project #2
+* 2 s0 Finish project #1
+* 1 s1 Unrelated bug fix
+* 0 s0 Start project #1
+
+
+To enable PR sets set prSetWorkflows = true in ~/.spr.yml.
+
+When this is enabled `git spr status` will have two extra fields:
+ * commit index - A numbering of the un-merged commits that make it easy to add commits to the merge set.
+ * pull request set index - A list of the existing PR sets. PR sets are names s0, s1, s2, etc.
+
+You can then add commits to PR sets using selector syntax. For example:
+* `git spr update 0-2` - Adds commit indexes 0, 1, and 2 to a PR set.
+* `git spr update 0-2,4` - Adds commit indexes 0, 1, 2, and 4 to a PR set.
+* `git spr update s2+7` - Adds commit indexes 7 to the existing s2 PR set.
+* `git spr update s2:2-3` - Rewrites the s2 PR set so that it now only includes commits 2 and 3.
+* `git spr update s2:s0,2-3` - Rewrites the s2 PR set so that it has all commits from PR set s0, and commits 2 and 3.
+  Note that this will end up remove the s0 PR set.
+
+You can then merge a PR set with
+`git spr merge s0` - Merge the s0 PR set.
+
 
 # Stacked Pull Requests on GitHub
 
