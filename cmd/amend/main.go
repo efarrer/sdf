@@ -48,14 +48,6 @@ func main() {
 	}
 
 	gitcmd := realgit.NewGitCmd(config.DefaultConfig())
-	//  check that we are inside a git dir
-	var output string
-	err = gitcmd.Git("status --porcelain", &output)
-	if err != nil {
-		fmt.Println(output)
-		fmt.Println(err)
-		os.Exit(2)
-	}
 
 	ctx := context.Background()
 	cfg := config_parser.ParseConfig(gitcmd)

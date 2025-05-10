@@ -16,22 +16,26 @@ import (
 
 // NewGitCmd returns a new git cmd instance
 func NewGitCmd(cfg *config.Config) *gitcmd {
-	initcmd := &gitcmd{
-		config: cfg,
-	}
-	var rootdir string
-	err := initcmd.Git("rev-parse --show-toplevel", &rootdir)
+	cwd, err := os.Getwd()
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(-1)
+		os.Exit(2)
 	}
-	rootdir = strings.TrimSpace(maybeAdjustPathPerPlatform(rootdir))
 
-	repo, err := gogit.PlainOpen(rootdir)
+	repo, err := gogit.PlainOpenWithOptions(cwd, &gogit.PlainOpenOptions{DetectDotGit: true})
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(-1)
+		fmt.Printf("%s is not a git repository\n", cwd)
+		os.Exit(2)
 	}
+
+	wt, err := repo.Worktree()
+	if err != nil {
+		fmt.Printf("%s is a bare git repository\n", cwd)
+		os.Exit(2)
+	}
+
+	rootdir := wt.Filesystem.Root()
+	rootdir = strings.TrimSpace(maybeAdjustPathPerPlatform(rootdir))
 
 	return &gitcmd{
 		config:  cfg,
