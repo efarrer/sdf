@@ -212,10 +212,15 @@ func (c *client) GetInfo(ctx context.Context, gitcmd git.GitInterface) *github.G
 		}
 	}
 
+	localBranch, err := gitcmd.GetLocalBranchShortName()
+	if err != nil {
+		panic(err.Error())
+	}
+
 	info := &github.GitHubInfo{
 		UserName:     loginName,
 		RepositoryID: repoID,
-		LocalBranch:  git.GetLocalBranchName(gitcmd),
+		LocalBranch:  localBranch,
 		PullRequests: pullRequests,
 	}
 

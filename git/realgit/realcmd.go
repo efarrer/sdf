@@ -153,3 +153,13 @@ func (c *gitcmd) DeleteRemoteBranch(ctx context.Context, branch string) error {
 
 	return nil
 }
+
+// GetLocalBranchShortName returns the local branch short name (like "main")
+func (c *gitcmd) GetLocalBranchShortName() (string, error) {
+	ref, err := c.repo.Head()
+	if err != nil {
+		return "", fmt.Errorf("getting HEAD %w", err)
+	}
+
+	return string(ref.Name().Short()), nil
+}

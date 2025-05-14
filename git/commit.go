@@ -8,6 +8,7 @@ type GitInterface interface {
 	MustGit(args string, output *string)
 	RootDir() string
 	DeleteRemoteBranch(ctx context.Context, branch string) error
+	GetLocalBranchShortName() (string, error)
 }
 
 // Commit has all the git commit info

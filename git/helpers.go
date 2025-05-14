@@ -10,20 +10,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// GetLocalBranchName returns the current local git branch
-func GetLocalBranchName(gitcmd GitInterface) string {
-	var output string
-	err := gitcmd.Git("branch --no-color", &output)
-	check(err)
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
-		if strings.HasPrefix(line, "* ") {
-			return line[2:]
-		}
-	}
-	panic("cannot determine local git branch name")
-}
-
 func BranchNameFromCommit(cfg *config.Config, commit Commit) string {
 	remoteBranchName := cfg.Repo.GitHubBranch
 	return "spr/" + remoteBranchName + "/" + commit.CommitID
