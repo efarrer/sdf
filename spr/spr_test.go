@@ -159,8 +159,10 @@ func testSPRBasicFlowFourCommitsQueue(t *testing.T, sync bool) {
 		githubmock.ExpectGetInfo()
 		githubmock.ExpectUpdatePullRequest(c2, nil)
 		githubmock.ExpectMergePullRequest(c2, genclient.PullRequestMergeMethod_REBASE)
+		gitmock.ExpectDeleteBranch("from_branch")
 		githubmock.ExpectCommentPullRequest(c1)
 		githubmock.ExpectClosePullRequest(c1)
+		gitmock.ExpectDeleteBranch("from_branch")
 		count := uint(2)
 		s.MergePullRequests(ctx, &count)
 		lines = strings.Split(output.String(), "\n")
@@ -203,11 +205,14 @@ func testSPRBasicFlowFourCommitsQueue(t *testing.T, sync bool) {
 		githubmock.ExpectGetInfo()
 		githubmock.ExpectUpdatePullRequest(c4, nil)
 		githubmock.ExpectMergePullRequest(c4, genclient.PullRequestMergeMethod_REBASE)
+		gitmock.ExpectDeleteBranch("from_branch")
 
 		githubmock.ExpectCommentPullRequest(c2)
 		githubmock.ExpectClosePullRequest(c2)
+		gitmock.ExpectDeleteBranch("from_branch")
 		githubmock.ExpectCommentPullRequest(c3)
 		githubmock.ExpectClosePullRequest(c3)
+		gitmock.ExpectDeleteBranch("from_branch")
 
 		githubmock.Info.PullRequests[0].InQueue = true
 
@@ -340,12 +345,16 @@ func testSPRBasicFlowFourCommits(t *testing.T, sync bool) {
 		githubmock.ExpectGetInfo()
 		githubmock.ExpectUpdatePullRequest(c4, nil)
 		githubmock.ExpectMergePullRequest(c4, genclient.PullRequestMergeMethod_REBASE)
+		gitmock.ExpectDeleteBranch("from_branch")
 		githubmock.ExpectCommentPullRequest(c1)
 		githubmock.ExpectClosePullRequest(c1)
+		gitmock.ExpectDeleteBranch("from_branch")
 		githubmock.ExpectCommentPullRequest(c2)
 		githubmock.ExpectClosePullRequest(c2)
+		gitmock.ExpectDeleteBranch("from_branch")
 		githubmock.ExpectCommentPullRequest(c3)
 		githubmock.ExpectClosePullRequest(c3)
+		gitmock.ExpectDeleteBranch("from_branch")
 		s.MergePullRequests(ctx, nil)
 		lines = strings.Split(output.String(), "\n")
 		assert.Equal("MERGED   1 : test commit 1", lines[0])
@@ -367,7 +376,6 @@ func TestSPRBasicFlowDeleteBranch(t *testing.T) {
 func testSPRBasicFlowDeleteBranch(t *testing.T, sync bool) {
 	t.Run(fmt.Sprintf("Sync: %v", sync), func(t *testing.T) {
 		s, gitmock, githubmock, _, output := makeTestObjects(t, sync)
-		s.config.User.DeleteMergedBranches = true
 		assert := require.New(t)
 		ctx := context.Background()
 
@@ -507,8 +515,10 @@ func testSPRMergeCount(t *testing.T, sync bool) {
 		githubmock.ExpectGetInfo()
 		githubmock.ExpectUpdatePullRequest(c2, nil)
 		githubmock.ExpectMergePullRequest(c2, genclient.PullRequestMergeMethod_REBASE)
+		gitmock.ExpectDeleteBranch("from_branch")
 		githubmock.ExpectCommentPullRequest(c1)
 		githubmock.ExpectClosePullRequest(c1)
+		gitmock.ExpectDeleteBranch("from_branch")
 		s.MergePullRequests(ctx, uintptr(2))
 		lines = strings.Split(output.String(), "\n")
 		assert.Equal("MERGED   1 : test commit 1", lines[0])
@@ -612,8 +622,10 @@ func testSPRAmendCommit(t *testing.T, sync bool) {
 		githubmock.ExpectGetInfo()
 		githubmock.ExpectUpdatePullRequest(c2, nil)
 		githubmock.ExpectMergePullRequest(c2, genclient.PullRequestMergeMethod_REBASE)
+		gitmock.ExpectDeleteBranch("from_branch")
 		githubmock.ExpectCommentPullRequest(c1)
 		githubmock.ExpectClosePullRequest(c1)
+		gitmock.ExpectDeleteBranch("from_branch")
 		s.MergePullRequests(ctx, nil)
 		lines = strings.Split(output.String(), "\n")
 		assert.Equal("MERGED   1 : test commit 1", lines[0])
