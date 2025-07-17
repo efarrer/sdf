@@ -24,6 +24,7 @@ func NewGitHubRemoteSource(config *config.Config, gitcmd git.GitInterface) *remo
 func (s *remoteSource) Load(_ interface{}) {
 	var output string
 	err := s.gitcmd.Git("remote -v", &output)
+
 	check(err)
 	lines := strings.Split(output, "\n")
 

@@ -13,6 +13,7 @@ import (
 	"github.com/ejoffe/spr/github"
 	"github.com/ejoffe/spr/github/githubclient/gen/genclient"
 	"github.com/ejoffe/spr/github/mockclient"
+	"github.com/ejoffe/spr/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,8 +26,9 @@ func makeTestObjects(t *testing.T, synchronized bool) (
 	cfg.Repo.GitHubRemote = "origin"
 	cfg.Repo.GitHubBranch = "master"
 	cfg.Repo.MergeMethod = "rebase"
-	gitmock = mockgit.NewMockGit(t)
-	githubmock = mockclient.NewMockClient(t)
+	expectations := mock.New(t, synchronized)
+	gitmock = mockgit.NewMockGit(expectations)
+	githubmock = mockclient.NewMockClient(expectations)
 	githubmock.Info = &github.GitHubInfo{
 		UserName:     "TestSPR",
 		RepositoryID: "RepoID",
@@ -83,8 +85,8 @@ func testSPRBasicFlowFourCommitsQueue(t *testing.T, sync bool) {
 		output.Reset()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1]
-		githubmock.ExpectGetInfo()
 		gitmock.ExpectFetch()
+		githubmock.ExpectGetInfo()
 		gitmock.ExpectLogAndRespond([]*git.Commit{&c1})
 		gitmock.ExpectPushCommits([]*git.Commit{&c1})
 		githubmock.ExpectCreatePullRequest(c1, nil)
@@ -100,8 +102,8 @@ func testSPRBasicFlowFourCommitsQueue(t *testing.T, sync bool) {
 		output.Reset()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1, c2]
-		githubmock.ExpectGetInfo()
 		gitmock.ExpectFetch()
+		githubmock.ExpectGetInfo()
 		gitmock.ExpectLogAndRespond([]*git.Commit{&c2, &c1})
 		gitmock.ExpectPushCommits([]*git.Commit{&c2})
 		githubmock.ExpectCreatePullRequest(c2, &c1)
@@ -121,8 +123,8 @@ func testSPRBasicFlowFourCommitsQueue(t *testing.T, sync bool) {
 		output.Reset()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1, c2, c3, c4]
-		githubmock.ExpectGetInfo()
 		gitmock.ExpectFetch()
+		githubmock.ExpectGetInfo()
 		gitmock.ExpectLogAndRespond([]*git.Commit{&c4, &c3, &c2, &c1})
 		gitmock.ExpectPushCommits([]*git.Commit{&c3, &c4})
 
@@ -173,18 +175,17 @@ func testSPRBasicFlowFourCommitsQueue(t *testing.T, sync bool) {
 		githubmock.ExpectationsMet()
 		output.Reset()
 
+		gitmock.ExpectFetch()
 		githubmock.Info.PullRequests = githubmock.Info.PullRequests[1:]
 		githubmock.Info.PullRequests[0].Merged = false
 		githubmock.Info.PullRequests[0].Commits = append(githubmock.Info.PullRequests[0].Commits, c1, c2)
 		githubmock.ExpectGetInfo()
+		gitmock.ExpectLogAndRespond([]*git.Commit{&c4, &c3, &c2, &c1})
+		gitmock.ExpectStatus()
 		githubmock.ExpectUpdatePullRequest(c2, nil)
 		githubmock.ExpectUpdatePullRequest(c3, &c2)
 		githubmock.ExpectUpdatePullRequest(c4, &c3)
 		githubmock.ExpectGetInfo()
-
-		gitmock.ExpectFetch()
-		gitmock.ExpectLogAndRespond([]*git.Commit{&c4, &c3, &c2, &c1})
-		gitmock.ExpectStatus()
 
 		s.UpdatePullRequests(ctx, []string{mockclient.NobodyLogin}, nil)
 		lines = strings.Split(output.String(), "\n")
@@ -269,8 +270,8 @@ func testSPRBasicFlowFourCommits(t *testing.T, sync bool) {
 		output.Reset()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1]
-		githubmock.ExpectGetInfo()
 		gitmock.ExpectFetch()
+		githubmock.ExpectGetInfo()
 		gitmock.ExpectLogAndRespond([]*git.Commit{&c1})
 		gitmock.ExpectPushCommits([]*git.Commit{&c1})
 		githubmock.ExpectCreatePullRequest(c1, nil)
@@ -286,8 +287,8 @@ func testSPRBasicFlowFourCommits(t *testing.T, sync bool) {
 		output.Reset()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1, c2]
-		githubmock.ExpectGetInfo()
 		gitmock.ExpectFetch()
+		githubmock.ExpectGetInfo()
 		gitmock.ExpectLogAndRespond([]*git.Commit{&c2, &c1})
 		gitmock.ExpectPushCommits([]*git.Commit{&c2})
 		githubmock.ExpectCreatePullRequest(c2, &c1)
@@ -307,8 +308,8 @@ func testSPRBasicFlowFourCommits(t *testing.T, sync bool) {
 		output.Reset()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1, c2, c3, c4]
-		githubmock.ExpectGetInfo()
 		gitmock.ExpectFetch()
+		githubmock.ExpectGetInfo()
 		gitmock.ExpectLogAndRespond([]*git.Commit{&c4, &c3, &c2, &c1})
 		gitmock.ExpectPushCommits([]*git.Commit{&c3, &c4})
 
@@ -391,8 +392,8 @@ func testSPRBasicFlowDeleteBranch(t *testing.T, sync bool) {
 		}
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1]
-		githubmock.ExpectGetInfo()
 		gitmock.ExpectFetch()
+		githubmock.ExpectGetInfo()
 		gitmock.ExpectLogAndRespond([]*git.Commit{&c1})
 		gitmock.ExpectPushCommits([]*git.Commit{&c1})
 		githubmock.ExpectCreatePullRequest(c1, nil)
@@ -408,8 +409,8 @@ func testSPRBasicFlowDeleteBranch(t *testing.T, sync bool) {
 		output.Reset()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1, c2]
-		githubmock.ExpectGetInfo()
 		gitmock.ExpectFetch()
+		githubmock.ExpectGetInfo()
 		gitmock.ExpectLogAndRespond([]*git.Commit{&c2, &c1})
 		gitmock.ExpectPushCommits([]*git.Commit{&c2})
 		githubmock.ExpectCreatePullRequest(c2, &c1)
@@ -479,8 +480,8 @@ func testSPRMergeCount(t *testing.T, sync bool) {
 		}
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1, c2, c3, c4]
-		githubmock.ExpectGetInfo()
 		gitmock.ExpectFetch()
+		githubmock.ExpectGetInfo()
 		gitmock.ExpectLogAndRespond([]*git.Commit{&c4, &c3, &c2, &c1})
 		gitmock.ExpectPushCommits([]*git.Commit{&c1, &c2, &c3, &c4})
 		// For the first "create" call we should call GetAssignableUsers
@@ -561,8 +562,8 @@ func testSPRAmendCommit(t *testing.T, sync bool) {
 		output.Reset()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1, c2]
-		githubmock.ExpectGetInfo()
 		gitmock.ExpectFetch()
+		githubmock.ExpectGetInfo()
 		gitmock.ExpectLogAndRespond([]*git.Commit{&c2, &c1})
 		gitmock.ExpectPushCommits([]*git.Commit{&c1, &c2})
 		githubmock.ExpectCreatePullRequest(c1, nil)
@@ -582,8 +583,8 @@ func testSPRAmendCommit(t *testing.T, sync bool) {
 		// amend commit c2
 		c2.CommitHash = "c201000000000000000000000000000000000000"
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1, c2]
-		githubmock.ExpectGetInfo()
 		gitmock.ExpectFetch()
+		githubmock.ExpectGetInfo()
 		gitmock.ExpectLogAndRespond([]*git.Commit{&c2, &c1})
 		gitmock.ExpectPushCommits([]*git.Commit{&c2})
 		githubmock.ExpectUpdatePullRequest(c1, nil)
@@ -602,8 +603,8 @@ func testSPRAmendCommit(t *testing.T, sync bool) {
 		c1.CommitHash = "c101000000000000000000000000000000000000"
 		c2.CommitHash = "c202000000000000000000000000000000000000"
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1, c2]
-		githubmock.ExpectGetInfo()
 		gitmock.ExpectFetch()
+		githubmock.ExpectGetInfo()
 		gitmock.ExpectLogAndRespond([]*git.Commit{&c2, &c1})
 		gitmock.ExpectPushCommits([]*git.Commit{&c1, &c2})
 		githubmock.ExpectUpdatePullRequest(c1, nil)
@@ -683,8 +684,8 @@ func testSPRReorderCommit(t *testing.T, sync bool) {
 		output.Reset()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1, c2, c3, c4]
-		githubmock.ExpectGetInfo()
 		gitmock.ExpectFetch()
+		githubmock.ExpectGetInfo()
 		gitmock.ExpectLogAndRespond([]*git.Commit{&c4, &c3, &c2, &c1})
 		gitmock.ExpectPushCommits([]*git.Commit{&c1, &c2, &c3, &c4})
 		githubmock.ExpectCreatePullRequest(c1, nil)
@@ -708,8 +709,8 @@ func testSPRReorderCommit(t *testing.T, sync bool) {
 		output.Reset()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c2, c4, c1, c3]
-		githubmock.ExpectGetInfo()
 		gitmock.ExpectFetch()
+		githubmock.ExpectGetInfo()
 		gitmock.ExpectLogAndRespond([]*git.Commit{&c3, &c1, &c4, &c2})
 		githubmock.ExpectUpdatePullRequest(c1, nil)
 		githubmock.ExpectUpdatePullRequest(c2, nil)
@@ -739,8 +740,8 @@ func testSPRReorderCommit(t *testing.T, sync bool) {
 		output.Reset()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c5, c1, c2, c3, c4]
-		githubmock.ExpectGetInfo()
 		gitmock.ExpectFetch()
+		githubmock.ExpectGetInfo()
 		gitmock.ExpectLogAndRespond([]*git.Commit{&c1, &c2, &c3, &c4, &c5})
 		githubmock.ExpectUpdatePullRequest(c1, nil)
 		githubmock.ExpectUpdatePullRequest(c2, nil)
@@ -817,8 +818,8 @@ func testSPRDeleteCommit(t *testing.T, sync bool) {
 		output.Reset()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1, c2, c3, c4]
-		githubmock.ExpectGetInfo()
 		gitmock.ExpectFetch()
+		githubmock.ExpectGetInfo()
 		gitmock.ExpectLogAndRespond([]*git.Commit{&c4, &c3, &c2, &c1})
 		gitmock.ExpectPushCommits([]*git.Commit{&c1, &c2, &c3, &c4})
 		githubmock.ExpectCreatePullRequest(c1, nil)
@@ -843,8 +844,8 @@ func testSPRDeleteCommit(t *testing.T, sync bool) {
 		output.Reset()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c2, c4, c1, c3]
-		githubmock.ExpectGetInfo()
 		gitmock.ExpectFetch()
+		githubmock.ExpectGetInfo()
 		gitmock.ExpectLogAndRespond([]*git.Commit{&c4, &c1})
 		githubmock.ExpectCommentPullRequest(c2)
 		githubmock.ExpectClosePullRequest(c2)
@@ -853,9 +854,9 @@ func testSPRDeleteCommit(t *testing.T, sync bool) {
 		// update commits
 		c1.CommitHash = "c101000000000000000000000000000000000000"
 		c4.CommitHash = "c401000000000000000000000000000000000000"
+		gitmock.ExpectPushCommits([]*git.Commit{&c1, &c4})
 		githubmock.ExpectUpdatePullRequest(c1, nil)
 		githubmock.ExpectUpdatePullRequest(c4, &c1)
-		gitmock.ExpectPushCommits([]*git.Commit{&c1, &c4})
 		githubmock.ExpectGetInfo()
 		s.UpdatePullRequests(ctx, nil, nil)
 		fmt.Printf("OUT: %s\n", output.String())

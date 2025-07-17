@@ -5,6 +5,7 @@ import (
 
 	"github.com/ejoffe/spr/config"
 	"github.com/ejoffe/spr/git/mockgit"
+	"github.com/ejoffe/spr/mock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -64,7 +65,8 @@ func TestGetRepoDetailsFromRemote(t *testing.T) {
 }
 
 func TestGitHubRemoteSource(t *testing.T) {
-	mock := mockgit.NewMockGit(t)
+	expectations := mock.New(t, true)
+	mock := mockgit.NewMockGit(expectations)
 	mock.ExpectRemote("https://github.com/r2/d2.git")
 
 	expect := config.Config{
