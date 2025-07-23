@@ -181,7 +181,7 @@ func padNumber(pad int) func(string) string {
 	}
 }
 
-func (pr *PullRequest) String(config *config.Config) string {
+func (pr *PullRequest) Stringer(config *config.Config) string {
 	prStatus := pr.StatusString(config)
 	if pr.Merged {
 		prStatus = "MERGED"

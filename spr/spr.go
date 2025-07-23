@@ -25,6 +25,7 @@ import (
 	"github.com/ejoffe/spr/config/config_parser"
 	"github.com/ejoffe/spr/git"
 	"github.com/ejoffe/spr/github"
+	"github.com/ejoffe/spr/output"
 	ngit "github.com/go-git/go-git/v5"
 	gogithub "github.com/google/go-github/v69/github"
 )
@@ -40,8 +41,8 @@ func NewStackedPR(config *config.Config, github github.GitHubInterface, gitcmd g
 		goghclient:   goghclient,
 		profiletimer: profiletimer.StartNoopTimer(),
 
-		Output: os.Stdout,
-		input:  os.Stdin,
+		Printer: output.New(os.Stdout),
+		input:   os.Stdin,
 	}
 }
 
@@ -54,7 +55,7 @@ type Stackediff struct {
 	profiletimer  profiletimer.Timer
 	DetailEnabled bool
 
-	Output       io.Writer
+	Printer      output.Printer
 	input        io.Reader
 	synchronized bool // When true code is executed without goroutines. Allows test to be deterministic
 }
@@ -65,19 +66,19 @@ type Stackediff struct {
 func (sd *Stackediff) AmendCommit(ctx context.Context) {
 	localCommits := git.GetLocalCommitStack(sd.config, sd.gitcmd)
 	if len(localCommits) == 0 {
-		fmt.Fprintf(sd.Output, "No commits to amend\n")
+		sd.Printer.Printf("No commits to amend\n")
 		return
 	}
 
 	for i := len(localCommits) - 1; i >= 0; i-- {
 		commit := localCommits[i]
-		fmt.Fprintf(sd.Output, " %d : %s : %s\n", i+1, commit.CommitID[0:8], commit.Subject)
+		sd.Printer.Printf(" %d : %s : %s\n", i+1, commit.CommitID[0:8], commit.Subject)
 	}
 
 	if len(localCommits) == 1 {
-		fmt.Fprintf(sd.Output, "Commit to amend (%d): ", 1)
+		sd.Printer.Printf(fmt.Sprintf("Commit to amend (%d): ", 1))
 	} else {
-		fmt.Fprintf(sd.Output, "Commit to amend (%d-%d): ", 1, len(localCommits))
+		sd.Printer.Printf(fmt.Sprintf("Commit to amend (%d-%d): ", 1, len(localCommits)))
 	}
 
 	reader := bufio.NewReader(sd.input)
@@ -85,7 +86,7 @@ func (sd *Stackediff) AmendCommit(ctx context.Context) {
 	line = strings.TrimSpace(line)
 	commitIndex, err := strconv.Atoi(line)
 	if err != nil || commitIndex < 1 || commitIndex > len(localCommits) {
-		fmt.Fprint(sd.Output, "Invalid input\n")
+		sd.Printer.Printf("InvalidInput\n")
 		return
 	}
 	commitIndex = commitIndex - 1
@@ -221,7 +222,7 @@ func (sd *Stackediff) UpdatePullRequests(ctx context.Context, reviewers []string
 				updateQueue = append(updateQueue, prUpdate{pr, c, prevCommit})
 				pr.Commit = c
 				if len(reviewers) != 0 {
-					fmt.Fprintf(sd.Output, "warning: not updating reviewers for PR #%d\n", pr.Number)
+					sd.Printer.Printf(fmt.Sprintf("warning: not updating reviewers for PR #%d\n", pr.Number))
 				}
 				prevCommit = &localCommits[commitIndex]
 				break
@@ -357,7 +358,7 @@ func (sd *Stackediff) MergePullRequests(ctx context.Context, count *uint) {
 	for i := 0; i <= prIndex; i++ {
 		pr := githubInfo.PullRequests[i]
 		pr.Merged = true
-		fmt.Fprintf(sd.Output, "%s\n", pr.String(sd.config))
+		sd.Printer.Print(pr.Stringer(sd.config))
 	}
 
 	sd.profiletimer.Step("MergePullRequests::End")
@@ -606,15 +607,15 @@ func (sd *Stackediff) StatusCommitsAndPRSets(ctx context.Context) {
 	sd.profiletimer.Step("StatusCommitsAndPRSets::NewReadState")
 
 	if state.Head() == nil {
-		fmt.Fprintf(sd.Output, "no local commits\n")
+		sd.Printer.Printf("no local commits\n")
 		return
 	}
 	if sd.DetailEnabled {
-		fmt.Fprint(sd.Output, header(sd.config))
+		sd.Printer.Printf(header(sd.config))
 	}
 	sd.profiletimer.Step("StatusCommitsAndPRSets::PrintDetails")
 	for this := state.Head(); this != nil; this = this.Parent {
-		fmt.Fprintf(sd.Output, "%s\n", this.PRSetString(sd.config))
+		sd.Printer.Printf("%s\n", this.PRSetString(sd.config))
 	}
 	sd.profiletimer.Step("StatusCommitsAndPRSets::OutputStatus")
 }
@@ -628,14 +629,14 @@ func (sd *Stackediff) StatusPullRequests(ctx context.Context) {
 	githubInfo := sd.github.GetInfo(ctx, sd.gitcmd)
 
 	if len(githubInfo.PullRequests) == 0 {
-		fmt.Fprintf(sd.Output, "pull request stack is empty\n")
+		sd.Printer.Printf("pull request stack is empty\n")
 	} else {
 		if sd.DetailEnabled {
-			fmt.Fprint(sd.Output, header(sd.config))
+			sd.Printer.Printf(header(sd.config))
 		}
 		for i := len(githubInfo.PullRequests) - 1; i >= 0; i-- {
 			pr := githubInfo.PullRequests[i]
-			fmt.Fprintf(sd.Output, "%s\n", pr.String(sd.config))
+			sd.Printer.Print(pr.Stringer(sd.config))
 		}
 	}
 	sd.profiletimer.Step("StatusPullRequests::End")
@@ -649,7 +650,7 @@ func (sd *Stackediff) SyncStack(ctx context.Context) {
 	githubInfo := sd.github.GetInfo(ctx, sd.gitcmd)
 
 	if len(githubInfo.PullRequests) == 0 {
-		fmt.Fprintf(sd.Output, "pull request stack is empty\n")
+		sd.Printer.Printf("pull request stack is empty\n")
 		return
 	}
 
@@ -670,7 +671,7 @@ func (sd *Stackediff) RunMergeCheck(ctx context.Context) {
 
 	localCommits := git.GetLocalCommitStack(sd.config, sd.gitcmd)
 	if len(localCommits) == 0 {
-		fmt.Println("no local commits - nothing to check")
+		sd.Printer.Printf("no local commits - nothing to check\n")
 		return
 	}
 
@@ -708,7 +709,7 @@ func (sd *Stackediff) RunMergeCheck(ctx context.Context) {
 		sd.config.State.MergeCheckCommit[githubInfo.Key()] = ""
 		rake.LoadSources(sd.config.State,
 			rake.YamlFileWriter(config_parser.InternalConfigFilePath()))
-		fmt.Printf("MergeCheck FAILED: %s\n", err)
+		sd.Printer.Printf("MergeCheck FAILED: %s\n", err)
 		return
 	}
 
@@ -716,7 +717,7 @@ func (sd *Stackediff) RunMergeCheck(ctx context.Context) {
 	sd.config.State.MergeCheckCommit[githubInfo.Key()] = lastCommit.CommitHash
 	rake.LoadSources(sd.config.State,
 		rake.YamlFileWriter(config_parser.InternalConfigFilePath()))
-	fmt.Println("MergeCheck PASSED")
+	sd.Printer.Printf("MergeCheck PASSED\n")
 }
 
 // ProfilingEnable enables stopwatch profiling
@@ -768,12 +769,12 @@ func (sd *Stackediff) fetchAndGetGitHubInfo(ctx context.Context) *github.GitHubI
 	}
 	info := sd.github.GetInfo(ctx, sd.gitcmd)
 	if git.BranchNameRegex.FindString(info.LocalBranch) != "" {
-		fmt.Printf("error: don't run spr in a remote pr branch\n")
-		fmt.Printf(" this could lead to weird duplicate pull requests getting created\n")
-		fmt.Printf(" in general there is no need to checkout remote branches used for prs\n")
-		fmt.Printf(" instead use local branches and run spr update to sync your commit stack\n")
-		fmt.Printf("  with your pull requests on github\n")
-		fmt.Printf("branch name: %s\n", info.LocalBranch)
+		sd.Printer.Printf("error: don't run spr in a remote pr branch\n").
+			Printf(" this could lead to weird duplicate pull requests getting created\n").
+			Printf(" in general there is no need to checkout remote branches used for prs\n").
+			Printf(" instead use local branches and run spr update to sync your commit stack\n").
+			Printf("  with your pull requests on github\n").
+			Printf("branch name: %s\n", info.LocalBranch)
 		return nil
 	}
 

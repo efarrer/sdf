@@ -8,7 +8,6 @@ import (
 	"math/rand/v2"
 	"os"
 	"path"
-	"strings"
 	"testing"
 	"time"
 
@@ -20,6 +19,7 @@ import (
 	"github.com/ejoffe/spr/git/realgit"
 	"github.com/ejoffe/spr/github"
 	"github.com/ejoffe/spr/github/githubclient"
+	"github.com/ejoffe/spr/output"
 	"github.com/ejoffe/spr/spr"
 	ngit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -45,7 +45,7 @@ type resources struct {
 	repo       *ngit.Repository
 	gitshell   git.GitInterface
 	stackedpr  *spr.Stackediff
-	sb         *strings.Builder
+	printer    *output.CapturedOutput
 	commitIds  []string
 	validate   func()
 }
@@ -73,8 +73,8 @@ func initialize(t *testing.T, cfgfn func(*config.Config)) *resources {
 	// This is so we can re-use the repos settings.
 	gitcmd := realgit.NewGitCmd(config.DefaultConfig())
 	//  check that we are inside a git dir
-	var output string
-	err = gitcmd.Git("status --porcelain", &output)
+	var out string
+	err = gitcmd.Git("status --porcelain", &out)
 	require.NoError(t, err)
 
 	cfg := config_parser.ParseConfig(gitcmd)
@@ -101,9 +101,9 @@ func initialize(t *testing.T, cfgfn func(*config.Config)) *resources {
 	client := githubclient.NewGitHubClient(ctx, cfg)
 	stackedpr := spr.NewStackedPR(cfg, client, gitcmd, repo, goghclient)
 
-	// Direct the output to a strings.Builder so we can test against the output
-	var sb strings.Builder
-	stackedpr.Output = &sb
+	// Direct the output to a mock Printer so we can test against the output
+	capout := output.MockPrinter()
+	stackedpr.Printer = capout
 
 	// Try and cleanup and reset the repo
 	state, err := bl.NewReadState(ctx, cfg, goghclient, repo)
@@ -116,7 +116,7 @@ func initialize(t *testing.T, cfgfn func(*config.Config)) *resources {
 		}
 	}
 
-	err = gitcmd.Git(fmt.Sprintf("reset --hard %s/%s", cfg.Repo.GitHubRemote, cfg.Repo.GitHubBranch), &output)
+	err = gitcmd.Git(fmt.Sprintf("reset --hard %s/%s", cfg.Repo.GitHubRemote, cfg.Repo.GitHubBranch), nil)
 	require.NoError(t, err)
 
 	r := &resources{
@@ -125,7 +125,7 @@ func initialize(t *testing.T, cfgfn func(*config.Config)) *resources {
 		repo:       repo,
 		gitshell:   gitcmd,
 		stackedpr:  stackedpr,
-		sb:         &sb,
+		printer:    capout,
 	}
 
 	// Add a function that will validate that all remote branches associated with any commits created by the unit test are
@@ -207,9 +207,9 @@ func TestBasicCommitUpdateMergeWithNoSubsetPRSets(t *testing.T) {
 	name := prefix + t.Name()
 
 	t.Run("Starts in expected state", func(t *testing.T) {
+		resources.printer.ExpectString("no local commits\n")
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, ".*no local commits.*", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectationsMet()
 	})
 
 	t.Run("New commits are shown with spr status", func(t *testing.T) {
@@ -226,28 +226,27 @@ func TestBasicCommitUpdateMergeWithNoSubsetPRSets(t *testing.T) {
 			},
 		})
 
+		resources.printer.ExpectRegExp("2.*No Pull Request Created")
+		resources.printer.ExpectRegExp("1.*No Pull Request Created")
+		resources.printer.ExpectRegExp("0.*No Pull Request Created")
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, "2.*No Pull Request Created", resources.sb.String())
-		require.Regexp(t, "1.*No Pull Request Created", resources.sb.String())
-		require.Regexp(t, "0.*No Pull Request Created", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectationsMet()
 	})
 
 	t.Run("Can create PRs with spr update", func(t *testing.T) {
 		resources.stackedpr.UpdatePRSets(ctx, "0-2")
 
-		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, "2.*s0.*github.com", resources.sb.String())
-		require.Regexp(t, "1.*s0.*github.com", resources.sb.String())
-		require.Regexp(t, "0.*s0.*github.com", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectRegExp("2.*s0.*github.com")
+		resources.printer.ExpectRegExp("1.*s0.*github.com")
+		resources.printer.ExpectRegExp("0.*s0.*github.com")
+		resources.printer.ExpectationsMet()
 	})
 
 	t.Run("Can merge PRs with spr merge", func(t *testing.T) {
+		resources.printer.ExpectString("no local commits\n")
 		resources.stackedpr.MergePRSet(ctx, "s0")
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, ".*no local commits.*", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectationsMet()
 	})
 }
 
@@ -269,9 +268,9 @@ func TestBasicCommitUpdateMergeWithNoSubsetPRSetsInABranch(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Starts in expected state", func(t *testing.T) {
+		resources.printer.ExpectString("no local commits\n")
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, ".*no local commits.*", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectationsMet()
 	})
 
 	t.Run("New commits are shown with spr status", func(t *testing.T) {
@@ -289,27 +288,26 @@ func TestBasicCommitUpdateMergeWithNoSubsetPRSetsInABranch(t *testing.T) {
 		})
 
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, "2.*No Pull Request Created", resources.sb.String())
-		require.Regexp(t, "1.*No Pull Request Created", resources.sb.String())
-		require.Regexp(t, "0.*No Pull Request Created", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectRegExp("2.*No Pull Request Created")
+		resources.printer.ExpectRegExp("1.*No Pull Request Created")
+		resources.printer.ExpectRegExp("0.*No Pull Request Created")
+		resources.printer.ExpectationsMet()
 	})
 
 	t.Run("Can create PRs with spr update", func(t *testing.T) {
 		resources.stackedpr.UpdatePRSets(ctx, "0-2")
 
-		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, "2.*s0.*github.com", resources.sb.String())
-		require.Regexp(t, "1.*s0.*github.com", resources.sb.String())
-		require.Regexp(t, "0.*s0.*github.com", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectRegExp("2.*s0.*github.com")
+		resources.printer.ExpectRegExp("1.*s0.*github.com")
+		resources.printer.ExpectRegExp("0.*s0.*github.com")
+		resources.printer.ExpectationsMet()
 	})
 
 	t.Run("Can merge PRs with spr merge", func(t *testing.T) {
+		resources.printer.ExpectString("no local commits\n")
 		resources.stackedpr.MergePRSet(ctx, "s0")
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, ".*no local commits.*", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectationsMet()
 	})
 
 	// Clean up branch
@@ -328,9 +326,9 @@ func TestBasicCommitUpdateMergeWithMultiplePRSets(t *testing.T) {
 	name := prefix + t.Name()
 
 	t.Run("Starts in expected state", func(t *testing.T) {
+		resources.printer.ExpectString("no local commits\n")
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, ".*no local commits.*", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectationsMet()
 	})
 
 	t.Run("New commits are shown with spr status", func(t *testing.T) {
@@ -351,11 +349,11 @@ func TestBasicCommitUpdateMergeWithMultiplePRSets(t *testing.T) {
 		})
 
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, "3.*No Pull Request Created", resources.sb.String())
-		require.Regexp(t, "2.*No Pull Request Created", resources.sb.String())
-		require.Regexp(t, "1.*No Pull Request Created", resources.sb.String())
-		require.Regexp(t, "0.*No Pull Request Created", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectRegExp("3.*No Pull Request Created")
+		resources.printer.ExpectRegExp("2.*No Pull Request Created")
+		resources.printer.ExpectRegExp("1.*No Pull Request Created")
+		resources.printer.ExpectRegExp("0.*No Pull Request Created")
+		resources.printer.ExpectationsMet()
 	})
 
 	t.Run("Can create PR sets with spr update", func(t *testing.T) {
@@ -363,32 +361,33 @@ func TestBasicCommitUpdateMergeWithMultiplePRSets(t *testing.T) {
 		resources.stackedpr.UpdatePRSets(ctx, "2")
 		resources.stackedpr.UpdatePRSets(ctx, "3")
 
+		resources.printer.Purge()
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, "3.*s2.*github.com", resources.sb.String())
-		require.Regexp(t, "2.*s1.*github.com", resources.sb.String())
-		require.Regexp(t, "1.*s0.*github.com", resources.sb.String())
-		require.Regexp(t, "0.*s0.*github.com", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectRegExp("3.*s2.*github.com")
+		resources.printer.ExpectRegExp("2.*s1.*github.com")
+		resources.printer.ExpectRegExp("1.*s0.*github.com")
+		resources.printer.ExpectRegExp("0.*s0.*github.com")
+		resources.printer.ExpectationsMet()
 	})
 
 	t.Run("Can merge PR sets with spr merge", func(t *testing.T) {
 		resources.stackedpr.MergePRSet(ctx, "s2")
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, "2.*s1.*github.com", resources.sb.String())
-		require.Regexp(t, "1.*s0.*github.com", resources.sb.String())
-		require.Regexp(t, "0.*s0.*github.com", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectRegExp("2.*s1.*github.com")
+		resources.printer.ExpectRegExp("1.*s0.*github.com")
+		resources.printer.ExpectRegExp("0.*s0.*github.com")
+		resources.printer.ExpectationsMet()
 
 		resources.stackedpr.MergePRSet(ctx, "s1")
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, "1.*s0.*github.com", resources.sb.String())
-		require.Regexp(t, "0.*s0.*github.com", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectRegExp("1.*s0.*github.com")
+		resources.printer.ExpectRegExp("0.*s0.*github.com")
+		resources.printer.ExpectationsMet()
 
+		resources.printer.ExpectString("no local commits\n")
 		resources.stackedpr.MergePRSet(ctx, "s0")
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, ".*no local commits.*", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectationsMet()
 	})
 }
 
@@ -401,9 +400,9 @@ func TestBasicCommitUpdateWithMergeConflictsWithSelectedCommits(t *testing.T) {
 	name := prefix + t.Name()
 
 	t.Run("Starts in expected state", func(t *testing.T) {
+		resources.printer.ExpectString("no local commits\n")
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, ".*no local commits.*", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectationsMet()
 	})
 
 	t.Run("New commits are shown with spr status", func(t *testing.T) {
@@ -424,11 +423,11 @@ func TestBasicCommitUpdateWithMergeConflictsWithSelectedCommits(t *testing.T) {
 		})
 
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, "3.*No Pull Request Created", resources.sb.String())
-		require.Regexp(t, "2.*No Pull Request Created", resources.sb.String())
-		require.Regexp(t, "1.*No Pull Request Created", resources.sb.String())
-		require.Regexp(t, "0.*No Pull Request Created", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectRegExp("3.*No Pull Request Created")
+		resources.printer.ExpectRegExp("2.*No Pull Request Created")
+		resources.printer.ExpectRegExp("1.*No Pull Request Created")
+		resources.printer.ExpectRegExp("0.*No Pull Request Created")
+		resources.printer.ExpectationsMet()
 	})
 
 	t.Run("Try to create PRs but get merge conflict due to skipping a dependent commit", func(t *testing.T) {
@@ -449,8 +448,8 @@ func TestBasicCommitUpdateReOrderCommitsReUpdateMerge(t *testing.T) {
 
 	t.Run("Starts in expected state", func(t *testing.T) {
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, ".*no local commits.*", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectRegExp(".*no local commits.*")
+		resources.printer.ExpectationsMet()
 	})
 
 	t.Run("New commits are shown with spr status", func(t *testing.T) {
@@ -468,20 +467,21 @@ func TestBasicCommitUpdateReOrderCommitsReUpdateMerge(t *testing.T) {
 		})
 
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, "2.*No Pull Request Created", resources.sb.String())
-		require.Regexp(t, "1.*No Pull Request Created", resources.sb.String())
-		require.Regexp(t, "0.*No Pull Request Created", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectRegExp("2.*No Pull Request Created")
+		resources.printer.ExpectRegExp("1.*No Pull Request Created")
+		resources.printer.ExpectRegExp("0.*No Pull Request Created")
+		resources.printer.ExpectationsMet()
 	})
 
 	t.Run("Can create PRs with spr update", func(t *testing.T) {
 		resources.stackedpr.UpdatePRSets(ctx, "0-2")
 
+		resources.printer.Purge()
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, "2.*s0.*github.com", resources.sb.String())
-		require.Regexp(t, "1.*s0.*github.com", resources.sb.String())
-		require.Regexp(t, "0.*s0.*github.com", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectRegExp("2.*s0.*github.com")
+		resources.printer.ExpectRegExp("1.*s0.*github.com")
+		resources.printer.ExpectRegExp("0.*s0.*github.com")
+		resources.printer.ExpectationsMet()
 	})
 
 	// Reorder commits
@@ -505,18 +505,19 @@ func TestBasicCommitUpdateReOrderCommitsReUpdateMerge(t *testing.T) {
 	t.Run("Can update PRs with spr update", func(t *testing.T) {
 		resources.stackedpr.UpdatePRSets(ctx, "0-2")
 
+		resources.printer.Purge()
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, "2.*s1.*github.com", resources.sb.String())
-		require.Regexp(t, "1.*s1.*github.com", resources.sb.String())
-		require.Regexp(t, "0.*s1.*github.com", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectRegExp("2.*s1.*github.com")
+		resources.printer.ExpectRegExp("1.*s1.*github.com")
+		resources.printer.ExpectRegExp("0.*s1.*github.com")
+		resources.printer.ExpectationsMet()
 	})
 
 	t.Run("Can merge PRs with spr merge", func(t *testing.T) {
 		resources.stackedpr.MergePRSet(ctx, "s1")
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, ".*no local commits.*", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectRegExp(".*no local commits.*")
+		resources.printer.ExpectationsMet()
 	})
 }
 
@@ -530,8 +531,8 @@ func TestBasicCommitUpdateRemoveCommitReUpdateMerge(t *testing.T) {
 
 	t.Run("Starts in expected state", func(t *testing.T) {
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, ".*no local commits.*", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectRegExp(".*no local commits.*")
+		resources.printer.ExpectationsMet()
 	})
 
 	t.Run("New commits are shown with spr status", func(t *testing.T) {
@@ -549,20 +550,21 @@ func TestBasicCommitUpdateRemoveCommitReUpdateMerge(t *testing.T) {
 		})
 
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, "2.*No Pull Request Created", resources.sb.String())
-		require.Regexp(t, "1.*No Pull Request Created", resources.sb.String())
-		require.Regexp(t, "0.*No Pull Request Created", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectRegExp("2.*No Pull Request Created")
+		resources.printer.ExpectRegExp("1.*No Pull Request Created")
+		resources.printer.ExpectRegExp("0.*No Pull Request Created")
+		resources.printer.ExpectationsMet()
 	})
 
 	t.Run("Can create PRs with spr update", func(t *testing.T) {
 		resources.stackedpr.UpdatePRSets(ctx, "0-2")
 
+		resources.printer.Purge()
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, "2.*s0.*github.com", resources.sb.String())
-		require.Regexp(t, "1.*s0.*github.com", resources.sb.String())
-		require.Regexp(t, "0.*s0.*github.com", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectRegExp("2.*s0.*github.com")
+		resources.printer.ExpectRegExp("1.*s0.*github.com")
+		resources.printer.ExpectRegExp("0.*s0.*github.com")
+		resources.printer.ExpectationsMet()
 	})
 
 	// Remove a commit
@@ -586,17 +588,21 @@ func TestBasicCommitUpdateRemoveCommitReUpdateMerge(t *testing.T) {
 	t.Run("Can update PRs with spr update", func(t *testing.T) {
 		resources.stackedpr.UpdatePRSets(ctx, "s0")
 
+		resources.printer.Purge()
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, "1.*s1.*github.com", resources.sb.String())
-		require.Regexp(t, "0.*s1.*github.com", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectRegExp("1.*s1.*github.com")
+		resources.printer.ExpectRegExp("0.*s1.*github.com")
+		resources.printer.ExpectationsMet()
 	})
 
 	t.Run("Can merge PRs with spr merge", func(t *testing.T) {
 		resources.stackedpr.MergePRSet(ctx, "s1")
+
+		resources.printer.Purge()
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, ".*no local commits.*", resources.sb.String())
-		resources.sb.Reset()
+
+		resources.printer.ExpectRegExp(".*no local commits.*")
+		resources.printer.ExpectationsMet()
 	})
 }
 
@@ -611,8 +617,8 @@ func TestBasicCommitUpdateMergeWithMergeCheck(t *testing.T) {
 
 	t.Run("Starts in expected state", func(t *testing.T) {
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, ".*no local commits.*", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectRegExp(".*no local commits.*")
+		resources.printer.ExpectationsMet()
 	})
 
 	t.Run("New commits are shown with spr status", func(t *testing.T) {
@@ -630,20 +636,21 @@ func TestBasicCommitUpdateMergeWithMergeCheck(t *testing.T) {
 		})
 
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, "2.*No Pull Request Created", resources.sb.String())
-		require.Regexp(t, "1.*No Pull Request Created", resources.sb.String())
-		require.Regexp(t, "0.*No Pull Request Created", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectRegExp("2.*No Pull Request Created")
+		resources.printer.ExpectRegExp("1.*No Pull Request Created")
+		resources.printer.ExpectRegExp("0.*No Pull Request Created")
+		resources.printer.ExpectationsMet()
 	})
 
 	t.Run("Can create PRs with spr update", func(t *testing.T) {
 		resources.stackedpr.UpdatePRSets(ctx, "0-2")
 
+		resources.printer.Purge()
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, "2.*s0.*github.com", resources.sb.String())
-		require.Regexp(t, "1.*s0.*github.com", resources.sb.String())
-		require.Regexp(t, "0.*s0.*github.com", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectRegExp("2.*s0.*github.com")
+		resources.printer.ExpectRegExp("1.*s0.*github.com")
+		resources.printer.ExpectRegExp("0.*s0.*github.com")
+		resources.printer.ExpectationsMet()
 	})
 
 	t.Run("Can't merge without spr check first", func(t *testing.T) {
@@ -659,9 +666,12 @@ func TestBasicCommitUpdateMergeWithMergeCheck(t *testing.T) {
 
 	t.Run("Can merge after spr check", func(t *testing.T) {
 		resources.stackedpr.MergePRSet(ctx, "s0")
+
+		resources.printer.Purge()
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, ".*no local commits.*", resources.sb.String())
-		resources.sb.Reset()
+
+		resources.printer.ExpectRegExp(".*no local commits.*")
+		resources.printer.ExpectationsMet()
 	})
 }
 
@@ -674,8 +684,8 @@ func TestMergeWithInvalidPRSetFails(t *testing.T) {
 
 	t.Run("Starts in expected state", func(t *testing.T) {
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
-		require.Regexp(t, ".*no local commits.*", resources.sb.String())
-		resources.sb.Reset()
+		resources.printer.ExpectRegExp(".*no local commits.*")
+		resources.printer.ExpectationsMet()
 	})
 
 	t.Run("Can merge PRs with spr merge", func(t *testing.T) {
@@ -683,6 +693,6 @@ func TestMergeWithInvalidPRSetFails(t *testing.T) {
 			os.Setenv("SPR_DEBUG", "1") // Hack to force a panic instead of os.Exit(1)
 			resources.stackedpr.MergePRSet(ctx, "s0")
 		}, "Expected a panic when a spr merge with an invalid PR set")
-		resources.sb.Reset()
+		resources.printer.ExpectationsMet()
 	})
 }

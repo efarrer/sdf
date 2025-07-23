@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/ejoffe/spr/config"
@@ -14,12 +13,12 @@ import (
 	"github.com/ejoffe/spr/github/githubclient/gen/genclient"
 	"github.com/ejoffe/spr/github/mockclient"
 	"github.com/ejoffe/spr/mock"
-	"github.com/stretchr/testify/require"
+	"github.com/ejoffe/spr/output"
 )
 
 func makeTestObjects(t *testing.T, synchronized bool) (
 	s *Stackediff, gitmock *mockgit.Mock, githubmock *mockclient.MockClient,
-	input *bytes.Buffer, output *bytes.Buffer) {
+	input *bytes.Buffer, capout *output.CapturedOutput) {
 	cfg := config.EmptyConfig()
 	cfg.Repo.RequireChecks = true
 	cfg.Repo.RequireApproval = true
@@ -35,8 +34,9 @@ func makeTestObjects(t *testing.T, synchronized bool) (
 		LocalBranch:  "master",
 	}
 	s = NewStackedPR(cfg, githubmock, gitmock, nil, nil)
-	output = &bytes.Buffer{}
-	s.Output = output
+	capout = output.MockPrinter()
+	s.Printer = capout
+
 	input = &bytes.Buffer{}
 	s.input = input
 	s.synchronized = synchronized
@@ -51,8 +51,7 @@ func TestSPRBasicFlowFourCommitsQueue(t *testing.T) {
 
 func testSPRBasicFlowFourCommitsQueue(t *testing.T, sync bool) {
 	t.Run(fmt.Sprintf("Sync: %v", sync), func(t *testing.T) {
-		s, gitmock, githubmock, _, output := makeTestObjects(t, sync)
-		assert := require.New(t)
+		s, gitmock, githubmock, _, capout := makeTestObjects(t, sync)
 		ctx := context.Background()
 
 		c1 := git.Commit{
@@ -79,10 +78,10 @@ func testSPRBasicFlowFourCommitsQueue(t *testing.T, sync bool) {
 		// 'git spr status' :: StatusPullRequest
 		githubmock.ExpectGetInfo()
 		s.StatusPullRequests(ctx)
-		assert.Equal("pull request stack is empty\n", output.String())
+		capout.ExpectString("pull request stack is empty\n")
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1]
 		gitmock.ExpectFetch()
@@ -95,11 +94,21 @@ func testSPRBasicFlowFourCommitsQueue(t *testing.T, sync bool) {
 		githubmock.ExpectUpdatePullRequest(c1, nil)
 		githubmock.ExpectGetInfo()
 		s.UpdatePullRequests(ctx, []string{mockclient.NobodyLogin}, nil)
-		fmt.Printf("OUT: %s\n", output.String())
-		assert.Equal("[vvvv]   1 : test commit 1\n", output.String())
+		pr := github.PullRequest{
+			Number: 1,
+			MergeStatus: github.PullRequestMergeStatus{
+				ChecksPass:     github.CheckStatusPass,
+				ReviewApproved: true,
+				NoConflicts:    true,
+				Stacked:        true,
+			},
+			Title: "test commit 1",
+		}
+		capout.ExpectString(pr.Stringer(s.config)).
+			ExpectationsMet()
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1, c2]
 		gitmock.ExpectFetch()
@@ -113,14 +122,32 @@ func testSPRBasicFlowFourCommitsQueue(t *testing.T, sync bool) {
 		githubmock.ExpectUpdatePullRequest(c2, &c1)
 		githubmock.ExpectGetInfo()
 		s.UpdatePullRequests(ctx, []string{mockclient.NobodyLogin}, nil)
-		lines := strings.Split(output.String(), "\n")
-		fmt.Printf("OUT: %s\n", output.String())
-		assert.Equal("warning: not updating reviewers for PR #1", lines[0])
-		assert.Equal("[vvvv]   1 : test commit 2", lines[1])
-		assert.Equal("[vvvv]   1 : test commit 1", lines[2])
+		capout.ExpectString("warning: not updating reviewers for PR #1\n")
+		pr = github.PullRequest{
+			Number: 1,
+			MergeStatus: github.PullRequestMergeStatus{
+				ChecksPass:     github.CheckStatusPass,
+				ReviewApproved: true,
+				NoConflicts:    true,
+				Stacked:        true,
+			},
+			Title: "test commit 2",
+		}
+		capout.ExpectString(pr.Stringer(s.config))
+		pr = github.PullRequest{
+			Number: 1,
+			MergeStatus: github.PullRequestMergeStatus{
+				ChecksPass:     github.CheckStatusPass,
+				ReviewApproved: true,
+				NoConflicts:    true,
+				Stacked:        true,
+			},
+			Title: "test commit 1",
+		}
+		capout.ExpectString(pr.Stringer(s.config))
+		capout.ExpectationsMet()
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1, c2, c3, c4]
 		gitmock.ExpectFetch()
@@ -143,19 +170,24 @@ func testSPRBasicFlowFourCommitsQueue(t *testing.T, sync bool) {
 		githubmock.ExpectUpdatePullRequest(c4, &c3)
 		githubmock.ExpectGetInfo()
 		s.UpdatePullRequests(ctx, []string{mockclient.NobodyLogin}, nil)
-		lines = strings.Split(output.String(), "\n")
-		fmt.Printf("OUT: %s\n", output.String())
-		assert.Equal([]string{
-			"warning: not updating reviewers for PR #1",
-			"warning: not updating reviewers for PR #1",
-			"[vvvv]   1 : test commit 4",
-			"[vvvv]   1 : test commit 3",
-			"[vvvv]   1 : test commit 2",
-			"[vvvv]   1 : test commit 1",
-		}, lines[:6])
+		capout.ExpectString("warning: not updating reviewers for PR #1\n").
+			ExpectString("warning: not updating reviewers for PR #1\n")
+		for i := 4; i > 0; i-- {
+			pr = github.PullRequest{
+				Number: 1,
+				MergeStatus: github.PullRequestMergeStatus{
+					ChecksPass:     github.CheckStatusPass,
+					ReviewApproved: true,
+					NoConflicts:    true,
+					Stacked:        true,
+				},
+				Title: fmt.Sprintf("test commit %d", i),
+			}
+			capout.ExpectString(pr.Stringer(s.config))
+		}
+		capout.ExpectationsMet()
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
 
 		// 'git spr merge' :: MergePullRequest :: commits=[a1, a2]
 		githubmock.ExpectGetInfo()
@@ -167,13 +199,12 @@ func testSPRBasicFlowFourCommitsQueue(t *testing.T, sync bool) {
 		gitmock.ExpectDeleteBranch("from_branch")
 		count := uint(2)
 		s.MergePullRequests(ctx, &count)
-		lines = strings.Split(output.String(), "\n")
-		assert.Equal("MERGED   1 : test commit 1", lines[0])
-		assert.Equal("MERGED   1 : test commit 2", lines[1])
-		fmt.Printf("OUT: %s\n", output.String())
+		capout.ExpectString("MERGED   1 : test commit 1")
+		capout.ExpectString("MERGED   1 : test commit 2")
+		capout.ExpectationsMet()
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 
 		gitmock.ExpectFetch()
 		githubmock.Info.PullRequests = githubmock.Info.PullRequests[1:]
@@ -188,19 +219,31 @@ func testSPRBasicFlowFourCommitsQueue(t *testing.T, sync bool) {
 		githubmock.ExpectGetInfo()
 
 		s.UpdatePullRequests(ctx, []string{mockclient.NobodyLogin}, nil)
-		lines = strings.Split(output.String(), "\n")
-		fmt.Printf("OUT: %s\n", output.String())
-		assert.Equal([]string{
-			"warning: not updating reviewers for PR #1",
-			"warning: not updating reviewers for PR #1",
-			"warning: not updating reviewers for PR #1",
-			"[vvvv]   1 : test commit 4",
-			"[vvvv]   1 : test commit 3",
-			"[vvvv] !   1 : test commit 2",
-		}, lines[:6])
+		capout.ExpectString("warning: not updating reviewers for PR #1\n").
+			ExpectString("warning: not updating reviewers for PR #1\n").
+			ExpectString("warning: not updating reviewers for PR #1\n")
+		for i := 4; i > 1; i-- {
+			commits := []git.Commit{}
+			if i == 2 {
+				commits = []git.Commit{{}, {}}
+			}
+
+			pr = github.PullRequest{
+				Number: 1,
+				MergeStatus: github.PullRequestMergeStatus{
+					ChecksPass:     github.CheckStatusPass,
+					ReviewApproved: true,
+					NoConflicts:    true,
+					Stacked:        true,
+				},
+				Commits: commits,
+				Title:   fmt.Sprintf("test commit %d", i),
+			}
+			capout.ExpectString(pr.Stringer(s.config))
+		}
+		capout.ExpectationsMet()
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
 
 		// 'git spr merge' :: MergePullRequest :: commits=[a2, a3, a4]
 		githubmock.ExpectGetInfo()
@@ -218,14 +261,14 @@ func testSPRBasicFlowFourCommitsQueue(t *testing.T, sync bool) {
 		githubmock.Info.PullRequests[0].InQueue = true
 
 		s.MergePullRequests(ctx, nil)
-		lines = strings.Split(output.String(), "\n")
-		assert.Equal("MERGED .   1 : test commit 2", lines[0])
-		assert.Equal("MERGED   1 : test commit 3", lines[1])
-		assert.Equal("MERGED   1 : test commit 4", lines[2])
-		fmt.Printf("OUT: %s\n", output.String())
+		capout.ExpectString("MERGED .   1 : test commit 2").
+			ExpectString("MERGED   1 : test commit 3").
+			ExpectString("MERGED   1 : test commit 4").
+			ExpectationsMet()
+
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 	})
 }
 
@@ -236,8 +279,7 @@ func TestSPRBasicFlowFourCommits(t *testing.T) {
 
 func testSPRBasicFlowFourCommits(t *testing.T, sync bool) {
 	t.Run(fmt.Sprintf("Sync: %v", sync), func(t *testing.T) {
-		s, gitmock, githubmock, _, output := makeTestObjects(t, sync)
-		assert := require.New(t)
+		s, gitmock, githubmock, _, capout := makeTestObjects(t, sync)
 		ctx := context.Background()
 
 		c1 := git.Commit{
@@ -264,10 +306,10 @@ func testSPRBasicFlowFourCommits(t *testing.T, sync bool) {
 		// 'git spr status' :: StatusPullRequest
 		githubmock.ExpectGetInfo()
 		s.StatusPullRequests(ctx)
-		assert.Equal("pull request stack is empty\n", output.String())
+		capout.ExpectString("pull request stack is empty\n")
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1]
 		gitmock.ExpectFetch()
@@ -280,11 +322,20 @@ func testSPRBasicFlowFourCommits(t *testing.T, sync bool) {
 		githubmock.ExpectUpdatePullRequest(c1, nil)
 		githubmock.ExpectGetInfo()
 		s.UpdatePullRequests(ctx, []string{mockclient.NobodyLogin}, nil)
-		fmt.Printf("OUT: %s\n", output.String())
-		assert.Equal("[vvvv]   1 : test commit 1\n", output.String())
+		pr := github.PullRequest{
+			Number: 1,
+			MergeStatus: github.PullRequestMergeStatus{
+				ChecksPass:     github.CheckStatusPass,
+				ReviewApproved: true,
+				NoConflicts:    true,
+				Stacked:        true,
+			},
+			Title: "test commit 1",
+		}
+		capout.ExpectString(pr.Stringer(s.config))
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1, c2]
 		gitmock.ExpectFetch()
@@ -298,14 +349,32 @@ func testSPRBasicFlowFourCommits(t *testing.T, sync bool) {
 		githubmock.ExpectUpdatePullRequest(c2, &c1)
 		githubmock.ExpectGetInfo()
 		s.UpdatePullRequests(ctx, []string{mockclient.NobodyLogin}, nil)
-		lines := strings.Split(output.String(), "\n")
-		fmt.Printf("OUT: %s\n", output.String())
-		assert.Equal("warning: not updating reviewers for PR #1", lines[0])
-		assert.Equal("[vvvv]   1 : test commit 2", lines[1])
-		assert.Equal("[vvvv]   1 : test commit 1", lines[2])
+		capout.ExpectString("warning: not updating reviewers for PR #1\n")
+		pr = github.PullRequest{
+			Number: 1,
+			MergeStatus: github.PullRequestMergeStatus{
+				ChecksPass:     github.CheckStatusPass,
+				ReviewApproved: true,
+				NoConflicts:    true,
+				Stacked:        true,
+			},
+			Title: "test commit 2",
+		}
+		capout.ExpectString(pr.Stringer(s.config))
+		pr = github.PullRequest{
+			Number: 1,
+			MergeStatus: github.PullRequestMergeStatus{
+				ChecksPass:     github.CheckStatusPass,
+				ReviewApproved: true,
+				NoConflicts:    true,
+				Stacked:        true,
+			},
+			Title: "test commit 1",
+		}
+		capout.ExpectString(pr.Stringer(s.config))
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1, c2, c3, c4]
 		gitmock.ExpectFetch()
@@ -328,19 +397,24 @@ func testSPRBasicFlowFourCommits(t *testing.T, sync bool) {
 		githubmock.ExpectUpdatePullRequest(c4, &c3)
 		githubmock.ExpectGetInfo()
 		s.UpdatePullRequests(ctx, []string{mockclient.NobodyLogin}, nil)
-		lines = strings.Split(output.String(), "\n")
-		fmt.Printf("OUT: %s\n", output.String())
-		assert.Equal([]string{
-			"warning: not updating reviewers for PR #1",
-			"warning: not updating reviewers for PR #1",
-			"[vvvv]   1 : test commit 4",
-			"[vvvv]   1 : test commit 3",
-			"[vvvv]   1 : test commit 2",
-			"[vvvv]   1 : test commit 1",
-		}, lines[:6])
+		capout.ExpectString("warning: not updating reviewers for PR #1\n").
+			ExpectString("warning: not updating reviewers for PR #1\n")
+		for i := 4; i > 0; i-- {
+			pr = github.PullRequest{
+				Number: 1,
+				MergeStatus: github.PullRequestMergeStatus{
+					ChecksPass:     github.CheckStatusPass,
+					ReviewApproved: true,
+					NoConflicts:    true,
+					Stacked:        true,
+				},
+				Title: fmt.Sprintf("test commit %d", i),
+			}
+			capout.ExpectString(pr.Stringer(s.config))
+		}
+		capout.ExpectationsMet()
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
 
 		// 'git spr merge' :: MergePullRequest :: commits=[a1, a2, a3, a4]
 		githubmock.ExpectGetInfo()
@@ -357,15 +431,23 @@ func testSPRBasicFlowFourCommits(t *testing.T, sync bool) {
 		githubmock.ExpectClosePullRequest(c3)
 		gitmock.ExpectDeleteBranch("from_branch")
 		s.MergePullRequests(ctx, nil)
-		lines = strings.Split(output.String(), "\n")
-		assert.Equal("MERGED   1 : test commit 1", lines[0])
-		assert.Equal("MERGED   1 : test commit 2", lines[1])
-		assert.Equal("MERGED   1 : test commit 3", lines[2])
-		assert.Equal("MERGED   1 : test commit 4", lines[3])
-		fmt.Printf("OUT: %s\n", output.String())
+		for i := 1; i < 5; i++ {
+			pr = github.PullRequest{
+				Merged: true,
+				Number: 1,
+				MergeStatus: github.PullRequestMergeStatus{
+					ChecksPass:     github.CheckStatusPass,
+					ReviewApproved: true,
+					NoConflicts:    true,
+					Stacked:        true,
+				},
+				Title: fmt.Sprintf("test commit %d", i),
+			}
+			capout.ExpectString(pr.Stringer(s.config))
+		}
+		capout.ExpectationsMet()
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
 	})
 }
 
@@ -376,8 +458,7 @@ func TestSPRBasicFlowDeleteBranch(t *testing.T) {
 
 func testSPRBasicFlowDeleteBranch(t *testing.T, sync bool) {
 	t.Run(fmt.Sprintf("Sync: %v", sync), func(t *testing.T) {
-		s, gitmock, githubmock, _, output := makeTestObjects(t, sync)
-		assert := require.New(t)
+		s, gitmock, githubmock, _, capout := makeTestObjects(t, sync)
 		ctx := context.Background()
 
 		c1 := git.Commit{
@@ -402,11 +483,20 @@ func testSPRBasicFlowDeleteBranch(t *testing.T, sync bool) {
 		githubmock.ExpectUpdatePullRequest(c1, nil)
 		githubmock.ExpectGetInfo()
 		s.UpdatePullRequests(ctx, []string{mockclient.NobodyLogin}, nil)
-		fmt.Printf("OUT: %s\n", output.String())
-		assert.Equal("[vvvv]   1 : test commit 1\n", output.String())
+		pr := github.PullRequest{
+			Number: 1,
+			MergeStatus: github.PullRequestMergeStatus{
+				ChecksPass:     github.CheckStatusPass,
+				ReviewApproved: true,
+				NoConflicts:    true,
+				Stacked:        true,
+			},
+			Title: "test commit 1",
+		}
+		capout.ExpectString(pr.Stringer(s.config))
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1, c2]
 		gitmock.ExpectFetch()
@@ -420,14 +510,32 @@ func testSPRBasicFlowDeleteBranch(t *testing.T, sync bool) {
 		githubmock.ExpectUpdatePullRequest(c2, &c1)
 		githubmock.ExpectGetInfo()
 		s.UpdatePullRequests(ctx, []string{mockclient.NobodyLogin}, nil)
-		lines := strings.Split(output.String(), "\n")
-		fmt.Printf("OUT: %s\n", output.String())
-		assert.Equal("warning: not updating reviewers for PR #1", lines[0])
-		assert.Equal("[vvvv]   1 : test commit 2", lines[1])
-		assert.Equal("[vvvv]   1 : test commit 1", lines[2])
+		capout.ExpectString("warning: not updating reviewers for PR #1\n")
+		pr = github.PullRequest{
+			Number: 1,
+			MergeStatus: github.PullRequestMergeStatus{
+				ChecksPass:     github.CheckStatusPass,
+				ReviewApproved: true,
+				NoConflicts:    true,
+				Stacked:        true,
+			},
+			Title: "test commit 2",
+		}
+		capout.ExpectString(pr.Stringer(s.config))
+		pr = github.PullRequest{
+			Number: 1,
+			MergeStatus: github.PullRequestMergeStatus{
+				ChecksPass:     github.CheckStatusPass,
+				ReviewApproved: true,
+				NoConflicts:    true,
+				Stacked:        true,
+			},
+			Title: "test commit 1",
+		}
+		capout.ExpectString(pr.Stringer(s.config))
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 
 		// 'git spr merge' :: MergePullRequest :: commits=[a1, a2]
 		githubmock.ExpectGetInfo()
@@ -438,12 +546,21 @@ func testSPRBasicFlowDeleteBranch(t *testing.T, sync bool) {
 		githubmock.ExpectClosePullRequest(c1)
 		gitmock.ExpectDeleteBranch("from_branch") // <--- This is the key expectation of this test.
 		s.MergePullRequests(ctx, nil)
-		lines = strings.Split(output.String(), "\n")
-		assert.Equal("MERGED   1 : test commit 1", lines[0])
-		fmt.Printf("OUT: %s\n", output.String())
+		pr = github.PullRequest{
+			Number: 1,
+			Merged: true,
+			Title:  "test commit 1",
+		}
+		capout.ExpectString(pr.Stringer(s.config))
+		pr = github.PullRequest{
+			Number: 1,
+			Merged: true,
+			Title:  "test commit 2",
+		}
+		capout.ExpectString(pr.Stringer(s.config))
+		capout.ExpectationsMet()
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
 	})
 }
 
@@ -454,8 +571,7 @@ func TestSPRMergeCount(t *testing.T) {
 
 func testSPRMergeCount(t *testing.T, sync bool) {
 	t.Run(fmt.Sprintf("Sync: %v", sync), func(t *testing.T) {
-		s, gitmock, githubmock, _, output := makeTestObjects(t, sync)
-		assert := require.New(t)
+		s, gitmock, githubmock, _, capout := makeTestObjects(t, sync)
 		ctx := context.Background()
 
 		c1 := git.Commit{
@@ -499,18 +615,23 @@ func testSPRMergeCount(t *testing.T, sync bool) {
 		githubmock.ExpectUpdatePullRequest(c3, &c2)
 		githubmock.ExpectUpdatePullRequest(c4, &c3)
 		githubmock.ExpectGetInfo()
+		for i := 4; i > 0; i-- {
+			pr := github.PullRequest{
+				Number: 1,
+				MergeStatus: github.PullRequestMergeStatus{
+					ChecksPass:     github.CheckStatusPass,
+					ReviewApproved: true,
+					NoConflicts:    true,
+					Stacked:        true,
+				},
+				Title: fmt.Sprintf("test commit %d", i),
+			}
+			capout.ExpectString(pr.Stringer(s.config))
+		}
 		s.UpdatePullRequests(ctx, []string{mockclient.NobodyLogin}, nil)
-		lines := strings.Split(output.String(), "\n")
-		fmt.Printf("OUT: %s\n", output.String())
-		assert.Equal([]string{
-			"[vvvv]   1 : test commit 4",
-			"[vvvv]   1 : test commit 3",
-			"[vvvv]   1 : test commit 2",
-			"[vvvv]   1 : test commit 1",
-		}, lines[:4])
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 
 		// 'git spr merge --count 2' :: MergePullRequest :: commits=[a1, a2, a3, a4]
 		githubmock.ExpectGetInfo()
@@ -520,14 +641,18 @@ func testSPRMergeCount(t *testing.T, sync bool) {
 		githubmock.ExpectCommentPullRequest(c1)
 		githubmock.ExpectClosePullRequest(c1)
 		gitmock.ExpectDeleteBranch("from_branch")
+		for i := 1; i <= 2; i++ {
+			pr := github.PullRequest{
+				Merged: true,
+				Number: 1,
+				Title:  fmt.Sprintf("test commit %d", i),
+			}
+			capout.ExpectString(pr.Stringer(s.config))
+		}
 		s.MergePullRequests(ctx, uintptr(2))
-		lines = strings.Split(output.String(), "\n")
-		assert.Equal("MERGED   1 : test commit 1", lines[0])
-		assert.Equal("MERGED   1 : test commit 2", lines[1])
-		fmt.Printf("OUT: %s\n", output.String())
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 	})
 }
 
@@ -538,8 +663,7 @@ func TestSPRAmendCommit(t *testing.T) {
 
 func testSPRAmendCommit(t *testing.T, sync bool) {
 	t.Run(fmt.Sprintf("Sync: %v", sync), func(t *testing.T) {
-		s, gitmock, githubmock, _, output := makeTestObjects(t, sync)
-		assert := require.New(t)
+		s, gitmock, githubmock, _, capout := makeTestObjects(t, sync)
 		ctx := context.Background()
 
 		c1 := git.Commit{
@@ -556,10 +680,10 @@ func testSPRAmendCommit(t *testing.T, sync bool) {
 		// 'git spr state' :: StatusPullRequest
 		githubmock.ExpectGetInfo()
 		s.StatusPullRequests(ctx)
-		assert.Equal("pull request stack is empty\n", output.String())
+		capout.ExpectString("pull request stack is empty\n")
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1, c2]
 		gitmock.ExpectFetch()
@@ -572,13 +696,8 @@ func testSPRAmendCommit(t *testing.T, sync bool) {
 		githubmock.ExpectUpdatePullRequest(c2, &c1)
 		githubmock.ExpectGetInfo()
 		s.UpdatePullRequests(ctx, nil, nil)
-		fmt.Printf("OUT: %s\n", output.String())
-		lines := strings.Split(output.String(), "\n")
-		assert.Equal("[vvvv]   1 : test commit 2", lines[0])
-		assert.Equal("[vvvv]   1 : test commit 1", lines[1])
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
 
 		// amend commit c2
 		c2.CommitHash = "c201000000000000000000000000000000000000"
@@ -590,14 +709,23 @@ func testSPRAmendCommit(t *testing.T, sync bool) {
 		githubmock.ExpectUpdatePullRequest(c1, nil)
 		githubmock.ExpectUpdatePullRequest(c2, &c1)
 		githubmock.ExpectGetInfo()
+		for _, i := range []int{2, 1, 2, 1} {
+			pr := github.PullRequest{
+				Number: 1,
+				MergeStatus: github.PullRequestMergeStatus{
+					ChecksPass:     github.CheckStatusPass,
+					ReviewApproved: true,
+					NoConflicts:    true,
+					Stacked:        true,
+				},
+				Title: fmt.Sprintf("test commit %d", i),
+			}
+			capout.ExpectString(pr.Stringer(s.config))
+		}
 		s.UpdatePullRequests(ctx, nil, nil)
-		lines = strings.Split(output.String(), "\n")
-		fmt.Printf("OUT: %s\n", output.String())
-		assert.Equal("[vvvv]   1 : test commit 2", lines[0])
-		assert.Equal("[vvvv]   1 : test commit 1", lines[1])
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 
 		// amend commit c1
 		c1.CommitHash = "c101000000000000000000000000000000000000"
@@ -610,14 +738,23 @@ func testSPRAmendCommit(t *testing.T, sync bool) {
 		githubmock.ExpectUpdatePullRequest(c1, nil)
 		githubmock.ExpectUpdatePullRequest(c2, &c1)
 		githubmock.ExpectGetInfo()
+		for _, i := range []int{2, 1} {
+			pr := github.PullRequest{
+				Number: 1,
+				MergeStatus: github.PullRequestMergeStatus{
+					ChecksPass:     github.CheckStatusPass,
+					ReviewApproved: true,
+					NoConflicts:    true,
+					Stacked:        true,
+				},
+				Title: fmt.Sprintf("test commit %d", i),
+			}
+			capout.ExpectString(pr.Stringer(s.config))
+		}
 		s.UpdatePullRequests(ctx, nil, nil)
-		lines = strings.Split(output.String(), "\n")
-		fmt.Printf("OUT: %s\n", output.String())
-		assert.Equal("[vvvv]   1 : test commit 2", lines[0])
-		assert.Equal("[vvvv]   1 : test commit 1", lines[1])
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 
 		// 'git spr merge' :: MergePullRequest :: commits=[a1, a2]
 		githubmock.ExpectGetInfo()
@@ -627,14 +764,18 @@ func testSPRAmendCommit(t *testing.T, sync bool) {
 		githubmock.ExpectCommentPullRequest(c1)
 		githubmock.ExpectClosePullRequest(c1)
 		gitmock.ExpectDeleteBranch("from_branch")
+		for _, i := range []int{1, 2} {
+			pr := github.PullRequest{
+				Merged: true,
+				Number: 1,
+				Title:  fmt.Sprintf("test commit %d", i),
+			}
+			capout.ExpectString(pr.Stringer(s.config))
+		}
 		s.MergePullRequests(ctx, nil)
-		lines = strings.Split(output.String(), "\n")
-		assert.Equal("MERGED   1 : test commit 1", lines[0])
-		assert.Equal("MERGED   1 : test commit 2", lines[1])
-		fmt.Printf("OUT: %s\n", output.String())
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 	})
 }
 
@@ -645,8 +786,7 @@ func TestSPRReorderCommit(t *testing.T) {
 
 func testSPRReorderCommit(t *testing.T, sync bool) {
 	t.Run(fmt.Sprintf("Sync: %v", sync), func(t *testing.T) {
-		s, gitmock, githubmock, _, output := makeTestObjects(t, sync)
-		assert := require.New(t)
+		s, gitmock, githubmock, _, capout := makeTestObjects(t, sync)
 		ctx := context.Background()
 
 		c1 := git.Commit{
@@ -678,10 +818,10 @@ func testSPRReorderCommit(t *testing.T, sync bool) {
 		// 'git spr status' :: StatusPullRequest
 		githubmock.ExpectGetInfo()
 		s.StatusPullRequests(ctx)
-		assert.Equal("pull request stack is empty\n", output.String())
+		capout.ExpectString("pull request stack is empty\n")
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1, c2, c3, c4]
 		gitmock.ExpectFetch()
@@ -697,16 +837,23 @@ func testSPRReorderCommit(t *testing.T, sync bool) {
 		githubmock.ExpectUpdatePullRequest(c3, &c2)
 		githubmock.ExpectUpdatePullRequest(c4, &c3)
 		githubmock.ExpectGetInfo()
+		for _, i := range []int{4, 3, 2, 1} {
+			pr := github.PullRequest{
+				Number: 1,
+				MergeStatus: github.PullRequestMergeStatus{
+					ChecksPass:     github.CheckStatusPass,
+					ReviewApproved: true,
+					NoConflicts:    true,
+					Stacked:        true,
+				},
+				Title: fmt.Sprintf("test commit %d", i),
+			}
+			capout.ExpectString(pr.Stringer(s.config))
+		}
 		s.UpdatePullRequests(ctx, nil, nil)
-		fmt.Printf("OUT: %s\n", output.String())
-		lines := strings.Split(output.String(), "\n")
-		assert.Equal("[vvvv]   1 : test commit 4", lines[0])
-		assert.Equal("[vvvv]   1 : test commit 3", lines[1])
-		assert.Equal("[vvvv]   1 : test commit 2", lines[2])
-		assert.Equal("[vvvv]   1 : test commit 1", lines[3])
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c2, c4, c1, c3]
 		gitmock.ExpectFetch()
@@ -727,17 +874,23 @@ func testSPRReorderCommit(t *testing.T, sync bool) {
 		githubmock.ExpectUpdatePullRequest(c1, &c4)
 		githubmock.ExpectUpdatePullRequest(c3, &c1)
 		githubmock.ExpectGetInfo()
+		for _, i := range []int{4, 3, 2, 1} {
+			pr := github.PullRequest{
+				Number: 1,
+				MergeStatus: github.PullRequestMergeStatus{
+					ChecksPass:     github.CheckStatusPass,
+					ReviewApproved: true,
+					NoConflicts:    true,
+					Stacked:        true,
+				},
+				Title: fmt.Sprintf("test commit %d", i),
+			}
+			capout.ExpectString(pr.Stringer(s.config))
+		}
 		s.UpdatePullRequests(ctx, nil, nil)
-		fmt.Printf("OUT: %s\n", output.String())
-		// TODO : Need to update pull requests in GetInfo expect to get this check to work
-		// lines = strings.Split(output.String(), "\n")
-		//assert.Equal("[vvvv]   1 : test commit 3", lines[0])
-		//assert.Equal("[vvvv]   1 : test commit 1", lines[1])
-		//assert.Equal("[vvvv]   1 : test commit 4", lines[2])
-		//assert.Equal("[vvvv]   1 : test commit 2", lines[3])
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c5, c1, c2, c3, c4]
 		gitmock.ExpectFetch()
@@ -760,18 +913,23 @@ func testSPRReorderCommit(t *testing.T, sync bool) {
 		githubmock.ExpectUpdatePullRequest(c2, &c3)
 		githubmock.ExpectUpdatePullRequest(c1, &c2)
 		githubmock.ExpectGetInfo()
+		for _, i := range []int{5, 4, 3, 2, 1} {
+			pr := github.PullRequest{
+				Number: 1,
+				MergeStatus: github.PullRequestMergeStatus{
+					ChecksPass:     github.CheckStatusPass,
+					ReviewApproved: true,
+					NoConflicts:    true,
+					Stacked:        true,
+				},
+				Title: fmt.Sprintf("test commit %d", i),
+			}
+			capout.ExpectString(pr.Stringer(s.config))
+		}
 		s.UpdatePullRequests(ctx, nil, nil)
-		fmt.Printf("OUT: %s\n", output.String())
-		// TODO : Need to update pull requests in GetInfo expect to get this check to work
-		// lines = strings.Split(output.String(), "\n")
-		//assert.Equal("[vvvv]   1 : test commit 5", lines[0])
-		//assert.Equal("[vvvv]   1 : test commit 4", lines[1])
-		//assert.Equal("[vvvv]   1 : test commit 3", lines[2])
-		//assert.Equal("[vvvv]   1 : test commit 2", lines[3])
-		//assert.Equal("[vvvv]   1 : test commit 1", lines[4])
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 
 		// TODO : add a call to merge and check merge order
 	})
@@ -784,8 +942,7 @@ func TestSPRDeleteCommit(t *testing.T) {
 
 func testSPRDeleteCommit(t *testing.T, sync bool) {
 	t.Run(fmt.Sprintf("Sync: %v", sync), func(t *testing.T) {
-		s, gitmock, githubmock, _, output := makeTestObjects(t, sync)
-		assert := require.New(t)
+		s, gitmock, githubmock, _, capout := makeTestObjects(t, sync)
 		ctx := context.Background()
 
 		c1 := git.Commit{
@@ -812,10 +969,10 @@ func testSPRDeleteCommit(t *testing.T, sync bool) {
 		// 'git spr status' :: StatusPullRequest
 		githubmock.ExpectGetInfo()
 		s.StatusPullRequests(ctx)
-		assert.Equal("pull request stack is empty\n", output.String())
+		capout.ExpectString("pull request stack is empty\n")
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c1, c2, c3, c4]
 		gitmock.ExpectFetch()
@@ -831,17 +988,24 @@ func testSPRDeleteCommit(t *testing.T, sync bool) {
 		githubmock.ExpectUpdatePullRequest(c3, &c2)
 		githubmock.ExpectUpdatePullRequest(c4, &c3)
 		githubmock.ExpectGetInfo()
+		for _, i := range []int{4, 3, 2, 1} {
+			pr := github.PullRequest{
+				Number: 1,
+				MergeStatus: github.PullRequestMergeStatus{
+					ChecksPass:     github.CheckStatusPass,
+					ReviewApproved: true,
+					NoConflicts:    true,
+					Stacked:        true,
+				},
+				Title: fmt.Sprintf("test commit %d", i),
+			}
+			capout.ExpectString(pr.Stringer(s.config))
+		}
 
 		s.UpdatePullRequests(ctx, nil, nil)
-		fmt.Printf("OUT: %s\n", output.String())
-		lines := strings.Split(output.String(), "\n")
-		assert.Equal("[vvvv]   1 : test commit 4", lines[0])
-		assert.Equal("[vvvv]   1 : test commit 3", lines[1])
-		assert.Equal("[vvvv]   1 : test commit 2", lines[2])
-		assert.Equal("[vvvv]   1 : test commit 1", lines[3])
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 
 		// 'git spr update' :: UpdatePullRequest :: commits=[c2, c4, c1, c3]
 		gitmock.ExpectFetch()
@@ -858,17 +1022,23 @@ func testSPRDeleteCommit(t *testing.T, sync bool) {
 		githubmock.ExpectUpdatePullRequest(c1, nil)
 		githubmock.ExpectUpdatePullRequest(c4, &c1)
 		githubmock.ExpectGetInfo()
+		for _, i := range []int{4, 1} {
+			pr := github.PullRequest{
+				Number: 1,
+				MergeStatus: github.PullRequestMergeStatus{
+					ChecksPass:     github.CheckStatusPass,
+					ReviewApproved: true,
+					NoConflicts:    true,
+					Stacked:        true,
+				},
+				Title: fmt.Sprintf("test commit %d", i),
+			}
+			capout.ExpectString(pr.Stringer(s.config))
+		}
 		s.UpdatePullRequests(ctx, nil, nil)
-		fmt.Printf("OUT: %s\n", output.String())
-		// TODO : Need to update pull requests in GetInfo expect to get this check to work
-		// lines = strings.Split(output.String(), "\n")
-		//assert.Equal("[vvvv]   1 : test commit 3", lines[0])
-		//assert.Equal("[vvvv]   1 : test commit 1", lines[1])
-		//assert.Equal("[vvvv]   1 : test commit 4", lines[2])
-		//assert.Equal("[vvvv]   1 : test commit 2", lines[3])
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 
 		// TODO : add a call to merge and check merge order
 	})
@@ -881,13 +1051,13 @@ func TestAmendNoCommits(t *testing.T) {
 
 func testAmendNoCommits(t *testing.T, sync bool) {
 	t.Run(fmt.Sprintf("Sync: %v", sync), func(t *testing.T) {
-		s, gitmock, _, _, output := makeTestObjects(t, sync)
-		assert := require.New(t)
+		s, gitmock, _, _, capout := makeTestObjects(t, sync)
 		ctx := context.Background()
 
 		gitmock.ExpectLogAndRespond([]*git.Commit{})
 		s.AmendCommit(ctx)
-		assert.Equal("No commits to amend\n", output.String())
+		capout.ExpectString("No commits to amend\n")
+		capout.ExpectationsMet()
 	})
 }
 
@@ -898,8 +1068,7 @@ func TestAmendOneCommit(t *testing.T) {
 
 func testAmendOneCommit(t *testing.T, sync bool) {
 	t.Run(fmt.Sprintf("Sync: %v", sync), func(t *testing.T) {
-		s, gitmock, _, input, output := makeTestObjects(t, sync)
-		assert := require.New(t)
+		s, gitmock, _, input, capout := makeTestObjects(t, sync)
 		ctx := context.Background()
 
 		c1 := git.Commit{
@@ -911,7 +1080,8 @@ func testAmendOneCommit(t *testing.T, sync bool) {
 		gitmock.ExpectFixup(c1.CommitHash)
 		input.WriteString("1")
 		s.AmendCommit(ctx)
-		assert.Equal(" 1 : 00000001 : test commit 1\nCommit to amend (1): ", output.String())
+		capout.ExpectString(" 1 : 00000001 : test commit 1\n").
+			ExpectString("Commit to amend (1): ")
 	})
 }
 
@@ -922,8 +1092,7 @@ func TestAmendTwoCommits(t *testing.T) {
 
 func testAmendTwoCommits(t *testing.T, sync bool) {
 	t.Run(fmt.Sprintf("Sync: %v", sync), func(t *testing.T) {
-		s, gitmock, _, input, output := makeTestObjects(t, sync)
-		assert := require.New(t)
+		s, gitmock, _, input, capout := makeTestObjects(t, sync)
 		ctx := context.Background()
 
 		c1 := git.Commit{
@@ -940,7 +1109,10 @@ func testAmendTwoCommits(t *testing.T, sync bool) {
 		gitmock.ExpectFixup(c2.CommitHash)
 		input.WriteString("1")
 		s.AmendCommit(ctx)
-		assert.Equal(" 2 : 00000001 : test commit 1\n 1 : 00000002 : test commit 2\nCommit to amend (1-2): ", output.String())
+		capout.ExpectString(" 2 : 00000001 : test commit 1\n").
+			ExpectString(" 1 : 00000002 : test commit 2\n").
+			ExpectString("Commit to amend (1-2): ")
+		capout.ExpectationsMet()
 	})
 }
 
@@ -951,8 +1123,7 @@ func TestAmendInvalidInput(t *testing.T) {
 
 func testAmendInvalidInput(t *testing.T, sync bool) {
 	t.Run(fmt.Sprintf("Sync: %v", sync), func(t *testing.T) {
-		s, gitmock, _, input, output := makeTestObjects(t, sync)
-		assert := require.New(t)
+		s, gitmock, _, input, capout := makeTestObjects(t, sync)
 		ctx := context.Background()
 
 		c1 := git.Commit{
@@ -964,23 +1135,29 @@ func testAmendInvalidInput(t *testing.T, sync bool) {
 		gitmock.ExpectLogAndRespond([]*git.Commit{&c1})
 		input.WriteString("a")
 		s.AmendCommit(ctx)
-		assert.Equal(" 1 : 00000001 : test commit 1\nCommit to amend (1): Invalid input\n", output.String())
+		capout.ExpectString(" 1 : 00000001 : test commit 1\n").
+			ExpectString("Commit to amend (1): ").
+			ExpectString("InvalidInput\n")
 		gitmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 
 		gitmock.ExpectLogAndRespond([]*git.Commit{&c1})
 		input.WriteString("0")
 		s.AmendCommit(ctx)
-		assert.Equal(" 1 : 00000001 : test commit 1\nCommit to amend (1): Invalid input\n", output.String())
+		capout.ExpectString(" 1 : 00000001 : test commit 1\n").
+			ExpectString("Commit to amend (1): ").
+			ExpectString("InvalidInput\n")
 		gitmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 
 		gitmock.ExpectLogAndRespond([]*git.Commit{&c1})
 		input.WriteString("2")
 		s.AmendCommit(ctx)
-		assert.Equal(" 1 : 00000001 : test commit 1\nCommit to amend (1): Invalid input\n", output.String())
+		capout.ExpectString(" 1 : 00000001 : test commit 1\n").
+			ExpectString("Commit to amend (1): ").
+			ExpectString("InvalidInput\n")
 		gitmock.ExpectationsMet()
-		output.Reset()
+		capout.ExpectationsMet()
 	})
 }
 

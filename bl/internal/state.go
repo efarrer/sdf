@@ -171,7 +171,7 @@ func (prc PRCommit) String(config *config.Config) string {
 	)
 
 	if prc.PullRequest != nil {
-		prString = prc.PullRequest.String(config)
+		prString = prc.PullRequest.Stringer(config)
 	}
 
 	prIndex := "--"

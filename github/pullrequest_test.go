@@ -176,6 +176,6 @@ func TestString(t *testing.T) {
 		{expect: "[?xxx] !   0 : Title", pr: pr(false, 2), cfg: cfg},
 	}
 	for i, test := range tests {
-		assert.Equal(t, test.expect, test.pr.String(test.cfg), fmt.Sprintf("case %d failed", i))
+		assert.Equal(t, test.expect, test.pr.Stringer(test.cfg), fmt.Sprintf("case %d failed", i))
 	}
 }
