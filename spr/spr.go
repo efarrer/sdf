@@ -47,13 +47,12 @@ func NewStackedPR(config *config.Config, github github.GitHubInterface, gitcmd g
 }
 
 type Stackediff struct {
-	config        *config.Config
-	github        github.GitHubInterface
-	gitcmd        git.GitInterface
-	repo          *ngit.Repository
-	goghclient    *gogithub.Client
-	profiletimer  profiletimer.Timer
-	DetailEnabled bool
+	config       *config.Config
+	github       github.GitHubInterface
+	gitcmd       git.GitInterface
+	repo         *ngit.Repository
+	goghclient   *gogithub.Client
+	profiletimer profiletimer.Timer
 
 	Printer      output.Printer
 	input        io.Reader
@@ -610,9 +609,7 @@ func (sd *Stackediff) StatusCommitsAndPRSets(ctx context.Context) {
 		sd.Printer.Printf("no local commits\n")
 		return
 	}
-	if sd.DetailEnabled {
-		sd.Printer.Printf(header(sd.config))
-	}
+	sd.Printer.Printf(header(sd.config))
 	sd.profiletimer.Step("StatusCommitsAndPRSets::PrintDetails")
 	for this := state.Head(); this != nil; this = this.Parent {
 		sd.Printer.Printf("%s\n", this.PRSetString(sd.config))
@@ -631,9 +628,7 @@ func (sd *Stackediff) StatusPullRequests(ctx context.Context) {
 	if len(githubInfo.PullRequests) == 0 {
 		sd.Printer.Printf("pull request stack is empty\n")
 	} else {
-		if sd.DetailEnabled {
-			sd.Printer.Printf(header(sd.config))
-		}
+		sd.Printer.Printf(header(sd.config))
 		for i := len(githubInfo.PullRequests) - 1; i >= 0; i-- {
 			pr := githubInfo.PullRequests[i]
 			sd.Printer.Print(pr.Stringer(sd.config))

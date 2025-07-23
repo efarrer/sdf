@@ -121,9 +121,6 @@ VERSION: fork of {{.Version}}
 			if c.IsSet("profile") {
 				stackedpr.ProfilingEnable()
 			}
-			if c.IsSet("detail") || cfg.User.StatusBitsHeader {
-				stackedpr.DetailEnabled = true
-			}
 			if c.IsSet("verbose") {
 				cfg.User.LogGitCommands = true
 				cfg.User.LogGitHubCalls = true

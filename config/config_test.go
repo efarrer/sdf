@@ -40,7 +40,6 @@ func TestDefaultConfig(t *testing.T) {
 			ShowPRLink:       true,
 			LogGitCommands:   false,
 			LogGitHubCalls:   false,
-			StatusBitsHeader: true,
 			StatusBitsEmojis: true,
 			PRSetWorkflows:   true,
 		},

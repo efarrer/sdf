@@ -45,7 +45,6 @@ type UserConfig struct {
 	ShowPRLink       bool `default:"true" yaml:"showPRLink"`
 	LogGitCommands   bool `default:"true" yaml:"logGitCommands"`
 	LogGitHubCalls   bool `default:"true" yaml:"logGitHubCalls"`
-	StatusBitsHeader bool `default:"true" yaml:"statusBitsHeader"`
 	StatusBitsEmojis bool `default:"true" yaml:"statusBitsEmojis"`
 
 	CreateDraftPRs       bool `default:"false" yaml:"createDraftPRs"`
