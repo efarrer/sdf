@@ -37,11 +37,10 @@ func TestDefaultConfig(t *testing.T) {
 			ShowPrTitlesInStack:   false,
 		},
 		User: &UserConfig{
-			ShowPRLink:       true,
-			LogGitCommands:   false,
-			LogGitHubCalls:   false,
-			StatusBitsEmojis: true,
-			PRSetWorkflows:   true,
+			ShowPRLink:     true,
+			LogGitCommands: false,
+			LogGitHubCalls: false,
+			PRSetWorkflows: true,
 		},
 		State: &InternalState{
 			MergeCheckCommit:      map[string]string{},

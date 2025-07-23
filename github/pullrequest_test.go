@@ -111,9 +111,7 @@ func TestStatusString(t *testing.T) {
 				RequireChecks:   requireChecks,
 				RequireApproval: requireApproval,
 			},
-			User: &config.UserConfig{
-				StatusBitsEmojis: false,
-			},
+			User: &config.UserConfig{},
 		}
 	}
 
@@ -129,15 +127,15 @@ func TestStatusString(t *testing.T) {
 	}
 
 	tests := []testcase{
-		{pr(CheckStatusPass, true, true, true), cfg(true, true), "[vvvv]"},
-		{pr(CheckStatusFail, true, true, true), cfg(true, true), "[xvvv]"},
-		{pr(CheckStatusUnknown, true, true, true), cfg(true, true), "[?vvv]"},
-		{pr(CheckStatusPending, true, true, true), cfg(true, true), "[.vvv]"},
-		{pr(CheckStatusPass, false, true, true), cfg(true, true), "[vxvv]"},
-		{pr(CheckStatusPass, true, false, true), cfg(true, true), "[vvxv]"},
-		{pr(CheckStatusPass, true, true, false), cfg(true, true), "[vvvx]"},
-		{pr(CheckStatusPass, true, true, true), cfg(false, true), "[-vvv]"},
-		{pr(CheckStatusPass, true, true, true), cfg(false, false), "[--vv]"},
+		{pr(CheckStatusPass, true, true, true), cfg(true, true), "[✅✅✅✅]"},
+		{pr(CheckStatusFail, true, true, true), cfg(true, true), "[❌✅✅✅]"},
+		{pr(CheckStatusUnknown, true, true, true), cfg(true, true), "[❓✅✅✅]"},
+		{pr(CheckStatusPending, true, true, true), cfg(true, true), "[⌛✅✅✅]"},
+		{pr(CheckStatusPass, false, true, true), cfg(true, true), "[✅❌✅✅]"},
+		{pr(CheckStatusPass, true, false, true), cfg(true, true), "[✅✅❌✅]"},
+		{pr(CheckStatusPass, true, true, false), cfg(true, true), "[✅✅✅❌]"},
+		{pr(CheckStatusPass, true, true, true), cfg(false, true), "[➖✅✅✅]"},
+		{pr(CheckStatusPass, true, true, true), cfg(false, false), "[➖➖✅✅]"},
 	}
 	for i, test := range tests {
 		assert.Equal(t, test.expect, test.pr.StatusString(test.cfg), fmt.Sprintf("case %d failed", i))
@@ -156,9 +154,7 @@ func TestString(t *testing.T) {
 			RequireChecks:   true,
 			RequireApproval: true,
 		},
-		User: &config.UserConfig{
-			StatusBitsEmojis: false,
-		},
+		User: &config.UserConfig{},
 	}
 
 	pr := func(inQueue bool, commits int) *PullRequest {
@@ -171,9 +167,9 @@ func TestString(t *testing.T) {
 	}
 
 	tests := []testcase{
-		{expect: "[?xxx] .   0 : Title", pr: pr(true, 1), cfg: cfg},
-		{expect: "[?xxx] .   0 : Title", pr: pr(true, 2), cfg: cfg},
-		{expect: "[?xxx] !   0 : Title", pr: pr(false, 2), cfg: cfg},
+		{expect: "[❓❌❌❌] ⌛   0 : Title", pr: pr(true, 1), cfg: cfg},
+		{expect: "[❓❌❌❌] ⌛   0 : Title", pr: pr(true, 2), cfg: cfg},
+		{expect: "[❓❌❌❌] ⚠️   0 : Title", pr: pr(false, 2), cfg: cfg},
 	}
 	for i, test := range tests {
 		assert.Equal(t, test.expect, test.pr.Stringer(test.cfg), fmt.Sprintf("case %d failed", i))

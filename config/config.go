@@ -42,10 +42,9 @@ type RepoConfig struct {
 }
 
 type UserConfig struct {
-	ShowPRLink       bool `default:"true" yaml:"showPRLink"`
-	LogGitCommands   bool `default:"true" yaml:"logGitCommands"`
-	LogGitHubCalls   bool `default:"true" yaml:"logGitHubCalls"`
-	StatusBitsEmojis bool `default:"true" yaml:"statusBitsEmojis"`
+	ShowPRLink     bool `default:"true" yaml:"showPRLink"`
+	LogGitCommands bool `default:"true" yaml:"logGitCommands"`
+	LogGitHubCalls bool `default:"true" yaml:"logGitHubCalls"`
 
 	CreateDraftPRs       bool `default:"false" yaml:"createDraftPRs"`
 	PreserveTitleAndBody bool `default:"false" yaml:"preserveTitleAndBody"`

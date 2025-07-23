@@ -99,14 +99,6 @@ const (
 	ColorBlue      = "\033[34m"
 	ColorLightBlue = "\033[1;34m"
 
-	// ascii status bits
-	asciiCheckmark = "v"
-	asciiCrossmark = "x"
-	asciiPending   = "."
-	asciiQuerymark = "?"
-	asciiEmpty     = "-"
-	asciiWarning   = "!"
-
 	// emoji status bits
 	emojiCheckmark    = "✅"
 	emojiCrossmark    = "❌"
@@ -117,24 +109,13 @@ const (
 )
 
 func StatusBitIcons(config *config.Config) map[string]string {
-	if config.User.StatusBitsEmojis {
-		return map[string]string{
-			"checkmark":    emojiCheckmark,
-			"crossmark":    emojiCrossmark,
-			"pending":      emojiPending,
-			"questionmark": emojiQuestionmark,
-			"empty":        emojiEmpty,
-			"warning":      emojiWarning,
-		}
-	} else {
-		return map[string]string{
-			"checkmark":    asciiCheckmark,
-			"crossmark":    asciiCrossmark,
-			"pending":      asciiPending,
-			"questionmark": asciiQuerymark,
-			"empty":        asciiEmpty,
-			"warning":      asciiWarning,
-		}
+	return map[string]string{
+		"checkmark":    emojiCheckmark,
+		"crossmark":    emojiCrossmark,
+		"pending":      emojiPending,
+		"questionmark": emojiQuestionmark,
+		"empty":        emojiEmpty,
+		"warning":      emojiWarning,
 	}
 }
 
@@ -223,10 +204,8 @@ func TrimToTerminal(config *config.Config, line string) string {
 		terminalWidth = 1000
 	}
 	lineLength := utf8.RuneCountInString(line)
-	if config.User.StatusBitsEmojis {
-		// each emoji consumes 2 chars in the terminal
-		lineLength += 4
-	}
+	// each emoji consumes 2 chars in the terminal
+	lineLength += 4
 	diff := lineLength - terminalWidth
 	if diff > 0 && terminalWidth > 3 {
 		line = line[:terminalWidth-3] + "..."

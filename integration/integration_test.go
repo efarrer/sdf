@@ -226,6 +226,7 @@ func TestBasicCommitUpdateMergeWithNoSubsetPRSets(t *testing.T) {
 			},
 		})
 
+		resources.printer.ExpectString(spr.Header(resources.cfg))
 		resources.printer.ExpectRegExp("2.*No Pull Request Created")
 		resources.printer.ExpectRegExp("1.*No Pull Request Created")
 		resources.printer.ExpectRegExp("0.*No Pull Request Created")
@@ -236,6 +237,7 @@ func TestBasicCommitUpdateMergeWithNoSubsetPRSets(t *testing.T) {
 	t.Run("Can create PRs with spr update", func(t *testing.T) {
 		resources.stackedpr.UpdatePRSets(ctx, "0-2")
 
+		resources.printer.ExpectString(spr.Header(resources.cfg))
 		resources.printer.ExpectRegExp("2.*s0.*github.com")
 		resources.printer.ExpectRegExp("1.*s0.*github.com")
 		resources.printer.ExpectRegExp("0.*s0.*github.com")
@@ -288,6 +290,7 @@ func TestBasicCommitUpdateMergeWithNoSubsetPRSetsInABranch(t *testing.T) {
 		})
 
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
+		resources.printer.ExpectString(spr.Header(resources.cfg))
 		resources.printer.ExpectRegExp("2.*No Pull Request Created")
 		resources.printer.ExpectRegExp("1.*No Pull Request Created")
 		resources.printer.ExpectRegExp("0.*No Pull Request Created")
@@ -297,6 +300,7 @@ func TestBasicCommitUpdateMergeWithNoSubsetPRSetsInABranch(t *testing.T) {
 	t.Run("Can create PRs with spr update", func(t *testing.T) {
 		resources.stackedpr.UpdatePRSets(ctx, "0-2")
 
+		resources.printer.ExpectString(spr.Header(resources.cfg))
 		resources.printer.ExpectRegExp("2.*s0.*github.com")
 		resources.printer.ExpectRegExp("1.*s0.*github.com")
 		resources.printer.ExpectRegExp("0.*s0.*github.com")
@@ -349,6 +353,7 @@ func TestBasicCommitUpdateMergeWithMultiplePRSets(t *testing.T) {
 		})
 
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
+		resources.printer.ExpectString(spr.Header(resources.cfg))
 		resources.printer.ExpectRegExp("3.*No Pull Request Created")
 		resources.printer.ExpectRegExp("2.*No Pull Request Created")
 		resources.printer.ExpectRegExp("1.*No Pull Request Created")
@@ -363,6 +368,7 @@ func TestBasicCommitUpdateMergeWithMultiplePRSets(t *testing.T) {
 
 		resources.printer.Purge()
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
+		resources.printer.ExpectString(spr.Header(resources.cfg))
 		resources.printer.ExpectRegExp("3.*s2.*github.com")
 		resources.printer.ExpectRegExp("2.*s1.*github.com")
 		resources.printer.ExpectRegExp("1.*s0.*github.com")
@@ -373,6 +379,7 @@ func TestBasicCommitUpdateMergeWithMultiplePRSets(t *testing.T) {
 	t.Run("Can merge PR sets with spr merge", func(t *testing.T) {
 		resources.stackedpr.MergePRSet(ctx, "s2")
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
+		resources.printer.ExpectString(spr.Header(resources.cfg))
 		resources.printer.ExpectRegExp("2.*s1.*github.com")
 		resources.printer.ExpectRegExp("1.*s0.*github.com")
 		resources.printer.ExpectRegExp("0.*s0.*github.com")
@@ -380,6 +387,7 @@ func TestBasicCommitUpdateMergeWithMultiplePRSets(t *testing.T) {
 
 		resources.stackedpr.MergePRSet(ctx, "s1")
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
+		resources.printer.ExpectString(spr.Header(resources.cfg))
 		resources.printer.ExpectRegExp("1.*s0.*github.com")
 		resources.printer.ExpectRegExp("0.*s0.*github.com")
 		resources.printer.ExpectationsMet()
@@ -423,6 +431,7 @@ func TestBasicCommitUpdateWithMergeConflictsWithSelectedCommits(t *testing.T) {
 		})
 
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
+		resources.printer.ExpectString(spr.Header(resources.cfg))
 		resources.printer.ExpectRegExp("3.*No Pull Request Created")
 		resources.printer.ExpectRegExp("2.*No Pull Request Created")
 		resources.printer.ExpectRegExp("1.*No Pull Request Created")
@@ -467,6 +476,7 @@ func TestBasicCommitUpdateReOrderCommitsReUpdateMerge(t *testing.T) {
 		})
 
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
+		resources.printer.ExpectString(spr.Header(resources.cfg))
 		resources.printer.ExpectRegExp("2.*No Pull Request Created")
 		resources.printer.ExpectRegExp("1.*No Pull Request Created")
 		resources.printer.ExpectRegExp("0.*No Pull Request Created")
@@ -478,6 +488,7 @@ func TestBasicCommitUpdateReOrderCommitsReUpdateMerge(t *testing.T) {
 
 		resources.printer.Purge()
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
+		resources.printer.ExpectString(spr.Header(resources.cfg))
 		resources.printer.ExpectRegExp("2.*s0.*github.com")
 		resources.printer.ExpectRegExp("1.*s0.*github.com")
 		resources.printer.ExpectRegExp("0.*s0.*github.com")
@@ -507,6 +518,7 @@ func TestBasicCommitUpdateReOrderCommitsReUpdateMerge(t *testing.T) {
 
 		resources.printer.Purge()
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
+		resources.printer.ExpectString(spr.Header(resources.cfg))
 		resources.printer.ExpectRegExp("2.*s1.*github.com")
 		resources.printer.ExpectRegExp("1.*s1.*github.com")
 		resources.printer.ExpectRegExp("0.*s1.*github.com")
@@ -550,6 +562,7 @@ func TestBasicCommitUpdateRemoveCommitReUpdateMerge(t *testing.T) {
 		})
 
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
+		resources.printer.ExpectString(spr.Header(resources.cfg))
 		resources.printer.ExpectRegExp("2.*No Pull Request Created")
 		resources.printer.ExpectRegExp("1.*No Pull Request Created")
 		resources.printer.ExpectRegExp("0.*No Pull Request Created")
@@ -561,6 +574,7 @@ func TestBasicCommitUpdateRemoveCommitReUpdateMerge(t *testing.T) {
 
 		resources.printer.Purge()
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
+		resources.printer.ExpectString(spr.Header(resources.cfg))
 		resources.printer.ExpectRegExp("2.*s0.*github.com")
 		resources.printer.ExpectRegExp("1.*s0.*github.com")
 		resources.printer.ExpectRegExp("0.*s0.*github.com")
@@ -590,6 +604,7 @@ func TestBasicCommitUpdateRemoveCommitReUpdateMerge(t *testing.T) {
 
 		resources.printer.Purge()
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
+		resources.printer.ExpectString(spr.Header(resources.cfg))
 		resources.printer.ExpectRegExp("1.*s1.*github.com")
 		resources.printer.ExpectRegExp("0.*s1.*github.com")
 		resources.printer.ExpectationsMet()
@@ -636,6 +651,7 @@ func TestBasicCommitUpdateMergeWithMergeCheck(t *testing.T) {
 		})
 
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
+		resources.printer.ExpectString(spr.Header(resources.cfg))
 		resources.printer.ExpectRegExp("2.*No Pull Request Created")
 		resources.printer.ExpectRegExp("1.*No Pull Request Created")
 		resources.printer.ExpectRegExp("0.*No Pull Request Created")
@@ -647,6 +663,7 @@ func TestBasicCommitUpdateMergeWithMergeCheck(t *testing.T) {
 
 		resources.printer.Purge()
 		resources.stackedpr.StatusCommitsAndPRSets(ctx)
+		resources.printer.ExpectString(spr.Header(resources.cfg))
 		resources.printer.ExpectRegExp("2.*s0.*github.com")
 		resources.printer.ExpectRegExp("1.*s0.*github.com")
 		resources.printer.ExpectRegExp("0.*s0.*github.com")
