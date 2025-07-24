@@ -169,9 +169,7 @@ func (pr *PullRequest) Stringer(config *config.Config) string {
 	}
 
 	padding := func(s string) string { return s }
-	if config.User.PRSetWorkflows {
-		padding = padNumber(5)
-	}
+	padding = padNumber(5)
 
 	prInfo := padding(fmt.Sprintf("%3d", pr.Number))
 	if config.User.ShowPRLink {

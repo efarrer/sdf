@@ -134,11 +134,7 @@ VERSION: fork of {{.Version}}
 				Aliases: []string{"s", "st"},
 				Usage:   "Show status of open pull requests",
 				Action: func(c *cli.Context) error {
-					if cfg.User.PRSetWorkflows {
-						stackedpr.StatusCommitsAndPRSets(ctx)
-					} else {
-						stackedpr.StatusPullRequests(ctx)
-					}
+					stackedpr.StatusCommitsAndPRSets(ctx)
 					return nil
 				},
 				Flags: []cli.Flag{
@@ -158,26 +154,13 @@ VERSION: fork of {{.Version}}
 				Aliases: []string{"u", "up"},
 				Usage:   "Update and create pull requests for updated commits in the stack",
 				Action: func(c *cli.Context) error {
-					if cfg.User.PRSetWorkflows {
-						if c.Args().Len() != 1 {
-							fmt.Printf("Usage: update <selector>\n")
-							return nil
-						}
-						selector := c.Args().First()
-						stackedpr.UpdatePRSets(ctx, selector)
-						return nil
-					} else {
-						if c.Bool("no-rebase") {
-							os.Setenv("SPR_NOREBASE", "true")
-						}
-						if c.IsSet("count") {
-							count := c.Uint("count")
-							stackedpr.UpdatePullRequests(ctx, c.StringSlice("reviewer"), &count)
-						} else {
-							stackedpr.UpdatePullRequests(ctx, c.StringSlice("reviewer"), nil)
-						}
+					if c.Args().Len() != 1 {
+						fmt.Printf("Usage: update <selector>\n")
 						return nil
 					}
+					selector := c.Args().First()
+					stackedpr.UpdatePRSets(ctx, selector)
+					return nil
 				},
 				Flags: []cli.Flag{
 					detailFlag,
@@ -202,23 +185,13 @@ VERSION: fork of {{.Version}}
 				Name:  "merge",
 				Usage: "Merge all mergeable pull requests",
 				Action: func(c *cli.Context) error {
-					if cfg.User.PRSetWorkflows {
-						if c.Args().Len() != 1 {
-							fmt.Printf("Usage: merge <PR set index>\n")
-							return nil
-						}
-						setIndex := c.Args().First()
-						stackedpr.MergePRSet(ctx, setIndex)
-						return nil
-					} else {
-						if c.IsSet("count") {
-							count := c.Uint("count")
-							stackedpr.MergePullRequests(ctx, &count)
-						} else {
-							stackedpr.MergePullRequests(ctx, nil)
-						}
+					if c.Args().Len() != 1 {
+						fmt.Printf("Usage: merge <PR set index>\n")
 						return nil
 					}
+					setIndex := c.Args().First()
+					stackedpr.MergePRSet(ctx, setIndex)
+					return nil
 				},
 				Flags: []cli.Flag{
 					detailFlag,

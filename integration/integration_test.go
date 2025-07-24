@@ -201,7 +201,6 @@ func (r *resources) createCommits(t *testing.T, repo *ngit.Repository, commits [
 func TestBasicCommitUpdateMergeWithNoSubsetPRSets(t *testing.T) {
 	ctx := context.Background()
 	resources := initialize(t, func(c *config.Config) {
-		c.User.PRSetWorkflows = true
 	})
 	defer resources.validate()
 	name := prefix + t.Name()
@@ -257,7 +256,6 @@ func TestBasicCommitUpdateMergeWithNoSubsetPRSetsInABranch(t *testing.T) {
 	remoteMain := ""
 	gitHubBranch := ""
 	resources := initialize(t, func(c *config.Config) {
-		c.User.PRSetWorkflows = true
 		gitHubBranch = c.Repo.GitHubBranch
 		remoteMain = c.Repo.GitHubRemote + "/" + c.Repo.GitHubBranch
 	})
@@ -324,7 +322,6 @@ func TestBasicCommitUpdateMergeWithNoSubsetPRSetsInABranch(t *testing.T) {
 func TestBasicCommitUpdateMergeWithMultiplePRSets(t *testing.T) {
 	ctx := context.Background()
 	resources := initialize(t, func(c *config.Config) {
-		c.User.PRSetWorkflows = true
 	})
 	defer resources.validate()
 	name := prefix + t.Name()
@@ -402,7 +399,6 @@ func TestBasicCommitUpdateMergeWithMultiplePRSets(t *testing.T) {
 func TestBasicCommitUpdateWithMergeConflictsWithSelectedCommits(t *testing.T) {
 	ctx := context.Background()
 	resources := initialize(t, func(c *config.Config) {
-		c.User.PRSetWorkflows = true
 	})
 	defer resources.validate()
 	name := prefix + t.Name()
@@ -450,7 +446,6 @@ func TestBasicCommitUpdateWithMergeConflictsWithSelectedCommits(t *testing.T) {
 func TestBasicCommitUpdateReOrderCommitsReUpdateMerge(t *testing.T) {
 	ctx := context.Background()
 	resources := initialize(t, func(c *config.Config) {
-		c.User.PRSetWorkflows = true
 	})
 	defer resources.validate()
 	name := prefix + t.Name()
@@ -536,7 +531,6 @@ func TestBasicCommitUpdateReOrderCommitsReUpdateMerge(t *testing.T) {
 func TestBasicCommitUpdateRemoveCommitReUpdateMerge(t *testing.T) {
 	ctx := context.Background()
 	resources := initialize(t, func(c *config.Config) {
-		c.User.PRSetWorkflows = true
 	})
 	//defer resources.validate()
 	name := prefix + t.Name()
@@ -625,7 +619,6 @@ func TestBasicCommitUpdateMergeWithMergeCheck(t *testing.T) {
 	ctx := context.Background()
 	resources := initialize(t, func(c *config.Config) {
 		c.Repo.MergeCheck = "/bin/ls"
-		c.User.PRSetWorkflows = true
 	})
 	defer resources.validate()
 	name := prefix + t.Name()
@@ -695,7 +688,6 @@ func TestBasicCommitUpdateMergeWithMergeCheck(t *testing.T) {
 func TestMergeWithInvalidPRSetFails(t *testing.T) {
 	ctx := context.Background()
 	resources := initialize(t, func(c *config.Config) {
-		c.User.PRSetWorkflows = true
 	})
 	defer resources.validate()
 

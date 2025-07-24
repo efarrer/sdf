@@ -49,7 +49,6 @@ type UserConfig struct {
 	CreateDraftPRs       bool `default:"false" yaml:"createDraftPRs"`
 	PreserveTitleAndBody bool `default:"false" yaml:"preserveTitleAndBody"`
 	NoRebase             bool `default:"false" yaml:"noRebase"`
-	PRSetWorkflows       bool `default:"true" yaml:"prSetWorkflows"`
 }
 
 type InternalState struct {

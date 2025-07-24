@@ -846,8 +846,7 @@ func check(err error) {
 }
 
 func Header(config *config.Config) string {
-	if config.User.PRSetWorkflows {
-		return `
+	return `
  ┌─ commit index
  │ ┌─ pull request set index
  │ │   ┌─ github checks pass
@@ -856,13 +855,4 @@ func Header(config *config.Config) string {
  │ │   │ │ │ ┌──── stack check
  │ │   │ │ │ │
 `
-	} else {
-		return `
- ┌─ github checks pass
- │ ┌── pull request approved
- │ │ ┌─── no merge conflicts
- │ │ │ ┌──── stack check
- │ │ │ │
-`
-	}
 }
