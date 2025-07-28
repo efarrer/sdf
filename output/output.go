@@ -135,7 +135,7 @@ func (co *CapturedOutput) fail(index *int) {
 	for i := 0; i < len(co.printed); i++ {
 		got := co.printed[i]
 		if index != nil && *index == i {
-			msg += fmt.Sprintf("------> \"%s\"\n", got)
+			msg += fmt.Sprintf("-----> \"%s\"\n", got)
 		} else {
 			msg += fmt.Sprintf("\"%s\"\n", got)
 		}
