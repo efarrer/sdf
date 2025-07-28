@@ -21,17 +21,6 @@ func BranchNameFromCommitId(cfg *config.Config, commitId string) string {
 
 var BranchNameRegex = regexp.MustCompile(`spr/([a-zA-Z0-9_\-/\.]+)/([a-f0-9]{8})$`)
 
-// GetLocalTopCommit returns the top unmerged commit in the stack
-//
-// return nil if there are no unmerged commits in the stack
-func GetLocalTopCommit(cfg *config.Config, gitcmd GitInterface) *Commit {
-	commits := GetLocalCommitStack(cfg, gitcmd)
-	if len(commits) == 0 {
-		return nil
-	}
-	return &commits[len(commits)-1]
-}
-
 // GetLocalCommitStack returns a list of unmerged commits
 //
 //	the list is ordered with the bottom commit in the stack first

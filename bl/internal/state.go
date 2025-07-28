@@ -152,43 +152,6 @@ func (prc PRCommit) PRSetString(config *config.Config) string {
 	return github.TrimToTerminal(config, line)
 }
 
-func (prc PRCommit) String(config *config.Config) string {
-	noPrMessage := "No Pull Request Created"
-	tempPrRemainingLen := 36
-	empty := github.StatusBitIcons(config)["empty"]
-
-	prString := fmt.Sprintf("[%s%s%s%s] %s%s : %s",
-		empty,
-		empty,
-		empty,
-		empty,
-		noPrMessage,
-		strings.Repeat(" ", tempPrRemainingLen),
-		prc.Commit.Subject,
-	)
-
-	if prc.PullRequest != nil {
-		prString = prc.PullRequest.Stringer(config)
-	}
-
-	prIndex := "--"
-	if prc.PRIndex != nil {
-		prIndex = fmt.Sprintf("s%d", *prc.PRIndex)
-	}
-
-	line := fmt.Sprintf("%s%2d%s %s%s%s %s",
-		github.ColorLightBlue,
-		prc.Index,
-		github.ColorReset,
-		indexColor(prc.PRIndex),
-		prIndex,
-		github.ColorReset,
-		prString,
-	)
-
-	return github.TrimToTerminal(config, line)
-}
-
 // Generic function to convert a nil pointer to its zero value.
 // Works for any type.
 func derefOrDefault[T any](ptr *T) T {
@@ -379,14 +342,6 @@ func (s *State) Head() *PRCommit {
 		return nil
 	}
 	return s.Commits[0]
-}
-
-func (s *State) String() string {
-	res := []string{}
-	for _, cm := range s.Commits {
-		res = append(res, fmt.Sprintf("%p:%#v", cm, *cm))
-	}
-	return strings.Join(res, ",\n")
 }
 
 // ApplyIndices applies the commits in state and updates the State's mutatedPRSets

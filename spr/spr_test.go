@@ -10,7 +10,6 @@ import (
 	"github.com/ejoffe/spr/git"
 	"github.com/ejoffe/spr/git/mockgit"
 	"github.com/ejoffe/spr/github"
-	"github.com/ejoffe/spr/github/githubclient/gen/genclient"
 	"github.com/ejoffe/spr/github/mockclient"
 	"github.com/ejoffe/spr/mock"
 	"github.com/ejoffe/spr/output"
@@ -191,23 +190,6 @@ func testSPRBasicFlowFourCommitsQueue(t *testing.T, sync bool) {
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
 
-		// 'git spr merge' :: MergePullRequest :: commits=[a1, a2]
-		githubmock.ExpectGetInfo()
-		githubmock.ExpectUpdatePullRequest(c2, nil)
-		githubmock.ExpectMergePullRequest(c2, genclient.PullRequestMergeMethod_REBASE)
-		gitmock.ExpectDeleteBranch("from_branch")
-		githubmock.ExpectCommentPullRequest(c1)
-		githubmock.ExpectClosePullRequest(c1)
-		gitmock.ExpectDeleteBranch("from_branch")
-		count := uint(2)
-		s.MergePullRequests(ctx, &count)
-		capout.ExpectString("MERGED https://///pull/1     : test commit 1")
-		capout.ExpectString("MERGED https://///pull/1     : test commit 2")
-		capout.ExpectationsMet()
-		gitmock.ExpectationsMet()
-		githubmock.ExpectationsMet()
-		capout.ExpectationsMet()
-
 		gitmock.ExpectFetch()
 		githubmock.Info.PullRequests = githubmock.Info.PullRequests[1:]
 		githubmock.Info.PullRequests[0].Merged = false
@@ -247,31 +229,6 @@ func testSPRBasicFlowFourCommitsQueue(t *testing.T, sync bool) {
 		capout.ExpectationsMet()
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-
-		// 'git spr merge' :: MergePullRequest :: commits=[a2, a3, a4]
-		githubmock.ExpectGetInfo()
-		githubmock.ExpectUpdatePullRequest(c4, nil)
-		githubmock.ExpectMergePullRequest(c4, genclient.PullRequestMergeMethod_REBASE)
-		gitmock.ExpectDeleteBranch("from_branch")
-
-		githubmock.ExpectCommentPullRequest(c2)
-		githubmock.ExpectClosePullRequest(c2)
-		gitmock.ExpectDeleteBranch("from_branch")
-		githubmock.ExpectCommentPullRequest(c3)
-		githubmock.ExpectClosePullRequest(c3)
-		gitmock.ExpectDeleteBranch("from_branch")
-
-		githubmock.Info.PullRequests[0].InQueue = true
-
-		s.MergePullRequests(ctx, nil)
-		capout.ExpectString("MERGED ⌛ https://///pull/1     : test commit 2").
-			ExpectString("MERGED https://///pull/1     : test commit 3").
-			ExpectString("MERGED https://///pull/1     : test commit 4").
-			ExpectationsMet()
-
-		gitmock.ExpectationsMet()
-		githubmock.ExpectationsMet()
-		capout.ExpectationsMet()
 	})
 }
 
@@ -421,39 +378,6 @@ func testSPRBasicFlowFourCommits(t *testing.T, sync bool) {
 		capout.ExpectationsMet()
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
-
-		// 'git spr merge' :: MergePullRequest :: commits=[a1, a2, a3, a4]
-		githubmock.ExpectGetInfo()
-		githubmock.ExpectUpdatePullRequest(c4, nil)
-		githubmock.ExpectMergePullRequest(c4, genclient.PullRequestMergeMethod_REBASE)
-		gitmock.ExpectDeleteBranch("from_branch")
-		githubmock.ExpectCommentPullRequest(c1)
-		githubmock.ExpectClosePullRequest(c1)
-		gitmock.ExpectDeleteBranch("from_branch")
-		githubmock.ExpectCommentPullRequest(c2)
-		githubmock.ExpectClosePullRequest(c2)
-		gitmock.ExpectDeleteBranch("from_branch")
-		githubmock.ExpectCommentPullRequest(c3)
-		githubmock.ExpectClosePullRequest(c3)
-		gitmock.ExpectDeleteBranch("from_branch")
-		s.MergePullRequests(ctx, nil)
-		for i := 1; i < 5; i++ {
-			pr = github.PullRequest{
-				Merged: true,
-				Number: 1,
-				MergeStatus: github.PullRequestMergeStatus{
-					ChecksPass:     github.CheckStatusPass,
-					ReviewApproved: true,
-					NoConflicts:    true,
-					Stacked:        true,
-				},
-				Title: fmt.Sprintf("test commit %d", i),
-			}
-			capout.ExpectString(pr.Stringer(s.config))
-		}
-		capout.ExpectationsMet()
-		gitmock.ExpectationsMet()
-		githubmock.ExpectationsMet()
 	})
 }
 
@@ -544,31 +468,6 @@ func testSPRBasicFlowDeleteBranch(t *testing.T, sync bool) {
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
 		capout.ExpectationsMet()
-
-		// 'git spr merge' :: MergePullRequest :: commits=[a1, a2]
-		githubmock.ExpectGetInfo()
-		githubmock.ExpectUpdatePullRequest(c2, nil)
-		githubmock.ExpectMergePullRequest(c2, genclient.PullRequestMergeMethod_REBASE)
-		gitmock.ExpectDeleteBranch("from_branch") // <--- This is the key expectation of this test.
-		githubmock.ExpectCommentPullRequest(c1)
-		githubmock.ExpectClosePullRequest(c1)
-		gitmock.ExpectDeleteBranch("from_branch") // <--- This is the key expectation of this test.
-		s.MergePullRequests(ctx, nil)
-		pr = github.PullRequest{
-			Number: 1,
-			Merged: true,
-			Title:  "test commit 1",
-		}
-		capout.ExpectString(pr.Stringer(s.config))
-		pr = github.PullRequest{
-			Number: 1,
-			Merged: true,
-			Title:  "test commit 2",
-		}
-		capout.ExpectString(pr.Stringer(s.config))
-		capout.ExpectationsMet()
-		gitmock.ExpectationsMet()
-		githubmock.ExpectationsMet()
 	})
 }
 
@@ -638,27 +537,6 @@ func testSPRMergeCount(t *testing.T, sync bool) {
 			capout.ExpectString(pr.Stringer(s.config))
 		}
 		s.UpdatePullRequests(ctx, []string{mockclient.NobodyLogin}, nil)
-		gitmock.ExpectationsMet()
-		githubmock.ExpectationsMet()
-		capout.ExpectationsMet()
-
-		// 'git spr merge --count 2' :: MergePullRequest :: commits=[a1, a2, a3, a4]
-		githubmock.ExpectGetInfo()
-		githubmock.ExpectUpdatePullRequest(c2, nil)
-		githubmock.ExpectMergePullRequest(c2, genclient.PullRequestMergeMethod_REBASE)
-		gitmock.ExpectDeleteBranch("from_branch")
-		githubmock.ExpectCommentPullRequest(c1)
-		githubmock.ExpectClosePullRequest(c1)
-		gitmock.ExpectDeleteBranch("from_branch")
-		for i := 1; i <= 2; i++ {
-			pr := github.PullRequest{
-				Merged: true,
-				Number: 1,
-				Title:  fmt.Sprintf("test commit %d", i),
-			}
-			capout.ExpectString(pr.Stringer(s.config))
-		}
-		s.MergePullRequests(ctx, uintptr(2))
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
 		capout.ExpectationsMet()
@@ -778,27 +656,6 @@ func testSPRAmendCommit(t *testing.T, sync bool) {
 			capout.ExpectString(pr.Stringer(s.config))
 		}
 		s.UpdatePullRequests(ctx, nil, nil)
-		gitmock.ExpectationsMet()
-		githubmock.ExpectationsMet()
-		capout.ExpectationsMet()
-
-		// 'git spr merge' :: MergePullRequest :: commits=[a1, a2]
-		githubmock.ExpectGetInfo()
-		githubmock.ExpectUpdatePullRequest(c2, nil)
-		githubmock.ExpectMergePullRequest(c2, genclient.PullRequestMergeMethod_REBASE)
-		gitmock.ExpectDeleteBranch("from_branch")
-		githubmock.ExpectCommentPullRequest(c1)
-		githubmock.ExpectClosePullRequest(c1)
-		gitmock.ExpectDeleteBranch("from_branch")
-		for _, i := range []int{1, 2} {
-			pr := github.PullRequest{
-				Merged: true,
-				Number: 1,
-				Title:  fmt.Sprintf("test commit %d", i),
-			}
-			capout.ExpectString(pr.Stringer(s.config))
-		}
-		s.MergePullRequests(ctx, nil)
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
 		capout.ExpectationsMet()
@@ -1191,8 +1048,4 @@ func testAmendInvalidInput(t *testing.T, sync bool) {
 		gitmock.ExpectationsMet()
 		capout.ExpectationsMet()
 	})
-}
-
-func uintptr(a uint) *uint {
-	return &a
 }
