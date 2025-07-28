@@ -42,7 +42,6 @@ type RepoConfig struct {
 }
 
 type UserConfig struct {
-	ShowPRLink     bool `default:"true" yaml:"showPRLink"`
 	LogGitCommands bool `default:"true" yaml:"logGitCommands"`
 	LogGitHubCalls bool `default:"true" yaml:"logGitHubCalls"`
 

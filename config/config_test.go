@@ -37,7 +37,6 @@ func TestDefaultConfig(t *testing.T) {
 			ShowPrTitlesInStack:   false,
 		},
 		User: &UserConfig{
-			ShowPRLink:     true,
 			LogGitCommands: false,
 			LogGitHubCalls: false,
 		},

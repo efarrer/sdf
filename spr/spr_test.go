@@ -201,8 +201,8 @@ func testSPRBasicFlowFourCommitsQueue(t *testing.T, sync bool) {
 		gitmock.ExpectDeleteBranch("from_branch")
 		count := uint(2)
 		s.MergePullRequests(ctx, &count)
-		capout.ExpectString("MERGED   1   : test commit 1")
-		capout.ExpectString("MERGED   1   : test commit 2")
+		capout.ExpectString("MERGED https://///pull/1     : test commit 1")
+		capout.ExpectString("MERGED https://///pull/1     : test commit 2")
 		capout.ExpectationsMet()
 		gitmock.ExpectationsMet()
 		githubmock.ExpectationsMet()
@@ -264,9 +264,9 @@ func testSPRBasicFlowFourCommitsQueue(t *testing.T, sync bool) {
 		githubmock.Info.PullRequests[0].InQueue = true
 
 		s.MergePullRequests(ctx, nil)
-		capout.ExpectString("MERGED ⌛   1   : test commit 2").
-			ExpectString("MERGED   1   : test commit 3").
-			ExpectString("MERGED   1   : test commit 4").
+		capout.ExpectString("MERGED ⌛ https://///pull/1     : test commit 2").
+			ExpectString("MERGED https://///pull/1     : test commit 3").
+			ExpectString("MERGED https://///pull/1     : test commit 4").
 			ExpectationsMet()
 
 		gitmock.ExpectationsMet()

@@ -126,13 +126,10 @@ func (prc PRCommit) PRSetString(config *config.Config) string {
 
 	if prc.PullRequest != nil {
 		padding := padNumber(5)
-		prInfo := padding(fmt.Sprintf("%3d", prc.PullRequest.Number))
-		if config.User.ShowPRLink {
-			prInfo = fmt.Sprintf("%s %s : https://%s/%s/%s/pull/%s",
-				prc.PullRequest.StatusString(config),
-				FormatSubject(prc.Commit.Subject),
-				config.Repo.GitHubHost, config.Repo.GitHubRepoOwner, config.Repo.GitHubRepoName, padding(fmt.Sprintf("%d", prc.PullRequest.Number)))
-		}
+		prInfo := fmt.Sprintf("%s %s : https://%s/%s/%s/pull/%s",
+			prc.PullRequest.StatusString(config),
+			FormatSubject(prc.Commit.Subject),
+			config.Repo.GitHubHost, config.Repo.GitHubRepoOwner, config.Repo.GitHubRepoName, padding(fmt.Sprintf("%d", prc.PullRequest.Number)))
 		prString = prInfo
 	}
 

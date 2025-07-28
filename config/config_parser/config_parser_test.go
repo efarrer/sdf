@@ -79,7 +79,6 @@ func TestGitHubRemoteSource(t *testing.T) {
 			MergeMethod:     "",
 		},
 		User: &config.UserConfig{
-			ShowPRLink:     false,
 			LogGitCommands: false,
 			LogGitHubCalls: false,
 		},

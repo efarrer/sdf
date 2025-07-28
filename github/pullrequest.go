@@ -171,11 +171,8 @@ func (pr *PullRequest) Stringer(config *config.Config) string {
 	padding := func(s string) string { return s }
 	padding = padNumber(5)
 
-	prInfo := padding(fmt.Sprintf("%3d", pr.Number))
-	if config.User.ShowPRLink {
-		prInfo = fmt.Sprintf("https://%s/%s/%s/pull/%s",
-			config.Repo.GitHubHost, config.Repo.GitHubRepoOwner, config.Repo.GitHubRepoName, padding(fmt.Sprintf("%d", pr.Number)))
-	}
+	prInfo := fmt.Sprintf("https://%s/%s/%s/pull/%s",
+		config.Repo.GitHubHost, config.Repo.GitHubRepoOwner, config.Repo.GitHubRepoName, padding(fmt.Sprintf("%d", pr.Number)))
 
 	var mq string
 	if len(pr.Commits) > 1 {
