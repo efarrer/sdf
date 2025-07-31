@@ -10,45 +10,23 @@ import (
 	"strconv"
 	"strings"
 
-	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/ejoffe/spr/config"
 	"github.com/ejoffe/spr/git"
 	"github.com/ejoffe/spr/git/realgit"
 	"github.com/ejoffe/spr/github"
 	"github.com/ejoffe/spr/github/githubclient"
-	ngit "github.com/go-git/go-git/v5"
-	ngitconfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	gogithub "github.com/google/go-github/v69/github"
 )
 
 type GitApi struct {
 	config     *config.Config
-	repo       *ngit.Repository
+	gitcmd     git.GitInterface
 	goghclient *gogithub.Client
 }
 
-func New(config *config.Config, repo *ngit.Repository, goghclient *gogithub.Client) GitApi {
-	return GitApi{config: config, repo: repo, goghclient: goghclient}
-}
-
-// OriginMainRef returns the ref for the default remote and the default branch (often origin/main)
-func (gapi GitApi) OriginMainRef(ctx context.Context) (*plumbing.Reference, error) {
-	branch := gapi.config.Repo.GitHubBranch
-
-	return gapi.OriginBranchRef(ctx, branch)
-}
-
-// OriginBranchRef returns the ref for the default remote (often origin) and the given branch
-func (gapi GitApi) OriginBranchRef(ctx context.Context, branch string) (*plumbing.Reference, error) {
-	remote := gapi.config.Repo.GitHubRemote
-
-	originMainRef, err := gapi.repo.Reference(plumbing.ReferenceName(fmt.Sprintf("refs/remotes/%s/%s", remote, branch)), true)
-	if err != nil {
-		return nil, fmt.Errorf("getting %s/%s HEAD %w", remote, branch, err)
-	}
-
-	return originMainRef, nil
+func New(config *config.Config, gitcmd git.GitInterface, goghclient *gogithub.Client) GitApi {
+	return GitApi{config: config, gitcmd: gitcmd, goghclient: goghclient}
 }
 
 // DeletePullRequest deletes the pull request and the associated branch
@@ -67,22 +45,11 @@ func (gapi GitApi) DeletePullRequest(ctx context.Context, pr *github.PullRequest
 func (gapi GitApi) DeleteRemoteBranch(ctx context.Context, branch string) error {
 	remoteName := gapi.config.Repo.GitHubRemote
 
-	remote, err := gapi.repo.Remote(remoteName)
-	if err != nil {
-		return fmt.Errorf("getting remote %s %w", remoteName, err)
-	}
-
 	// Construct the reference name for branch
 	refName := plumbing.NewBranchReferenceName(branch)
 
-	pushOptions := ngit.PushOptions{
-		RemoteName: remoteName,
-		// Nothing before the colon says to push nothing to the destination branch (which deletes it).
-		RefSpecs: []ngitconfig.RefSpec{ngitconfig.RefSpec(fmt.Sprintf(":%s", refName))},
-	}
-
 	// Delete the remote branch
-	err = remote.Push(&pushOptions)
+	err := gapi.gitcmd.Push(remoteName, []string{fmt.Sprintf(":%s", refName)})
 	if err != nil {
 		return fmt.Errorf("removing remote branch %s %w", branch, err)
 	}
@@ -97,7 +64,7 @@ func (gapi GitApi) CreateRemoteBranchWithCherryPick(ctx context.Context, branchN
 	//have to do this by shelling out to the command line
 	gitshell := realgit.NewGitCmd(gapi.config)
 
-	destBranchRef, err := gapi.OriginBranchRef(ctx, destBranchName)
+	destBranchRefName, err := gapi.gitcmd.OriginBranchRef(ctx, destBranchName)
 	if err != nil {
 		return fmt.Errorf("getting the ref for %s %w", destBranchName, err)
 	}
@@ -131,7 +98,7 @@ func (gapi GitApi) CreateRemoteBranchWithCherryPick(ctx context.Context, branchN
 	cleanup.dir = tempDir
 
 	// Create the worktree
-	err = gitshell.Git(fmt.Sprintf("worktree add %s %s", tempDir, destBranchRef.Hash().String()), nil)
+	err = gitshell.Git(fmt.Sprintf("worktree add %s %s", tempDir, destBranchRefName), nil)
 	if err != nil {
 		return fmt.Errorf("creating the worktree in %s %w", tempDir, err)
 	}
@@ -142,8 +109,8 @@ func (gapi GitApi) CreateRemoteBranchWithCherryPick(ctx context.Context, branchN
 	gitworktreeshell.SetRootDir(tempDir)
 
 	// Create the local branch if it doesn't already exist
-	if branchExists, _ := gapi.BranchExists(branchName); !branchExists {
-		err = gitworktreeshell.Git(fmt.Sprintf("checkout -b %s %s", branchName, destBranchRef.Hash().String()), nil)
+	if branchExists, _ := gapi.gitcmd.BranchExists(branchName); !branchExists {
+		err = gitworktreeshell.Git(fmt.Sprintf("checkout -b %s %s", branchName, destBranchRefName), nil)
 		if err != nil {
 			return fmt.Errorf("creating the branch %s in worktree %s %w", branchName, tempDir, err)
 		}
@@ -191,46 +158,6 @@ func (gapi GitApi) AppendCommitId() error {
 	}
 
 	return nil
-}
-
-// RemoteBranches returns a list of all remote branches
-func (gapi GitApi) RemoteBranches() (mapset.Set[string], error) {
-	remoteBranches := mapset.NewSet[string]()
-	remote, err := gapi.repo.Remote(gapi.config.Repo.GitHubRemote)
-	if err != nil {
-		return remoteBranches, fmt.Errorf("finding remote branches %w", err)
-	}
-
-	refs, err := remote.List(&ngit.ListOptions{})
-	if err != nil {
-		return remoteBranches, fmt.Errorf("listing remote branches %w", err)
-	}
-	for _, ref := range refs {
-		if ref.Name().IsBranch() {
-			remoteBranches.Add(ref.Name().String())
-		}
-	}
-	return remoteBranches, nil
-}
-
-func (gapi GitApi) BranchExists(branchName string) (bool, error) {
-	iter, err := gapi.repo.Branches()
-	if err != nil {
-		return false, fmt.Errorf("finding existing branches %w", err)
-	}
-	defer iter.Close()
-
-	branchExists := false
-	err = iter.ForEach(func(ref *plumbing.Reference) error {
-		if ref.Name().String() == fmt.Sprintf("refs/heads/%s", branchName) {
-			branchExists = true
-		}
-		if ref.Name().String() == branchName {
-			branchExists = true
-		}
-		return nil
-	})
-	return branchExists, nil
 }
 
 func (gapi GitApi) CreatePullRequest(
@@ -388,11 +315,7 @@ func (gapi GitApi) getBody(commit git.Commit, pullRequests []*github.PullRequest
 		return body, nil
 	}
 
-	w, err := gapi.repo.Worktree()
-	if err != nil {
-		return "", fmt.Errorf("getting worktree %w", err)
-	}
-	fullTemplatePath := path.Join(w.Filesystem.Root(), gapi.config.Repo.PRTemplatePath)
+	fullTemplatePath := path.Join(gapi.gitcmd.RootDir(), gapi.config.Repo.PRTemplatePath)
 	pullRequestTemplateBytes, err := os.ReadFile(fullTemplatePath)
 	if err != nil {
 		return "", fmt.Errorf("reading template file %s: %w", fullTemplatePath, err)

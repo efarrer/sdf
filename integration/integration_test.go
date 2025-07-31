@@ -42,7 +42,6 @@ var prefix string = ""
 type resources struct {
 	cfg        *config.Config
 	goghclient *gogithub.Client
-	repo       *ngit.Repository
 	gitshell   git.GitInterface
 	stackedpr  *spr.Stackediff
 	printer    *output.CapturedOutput
@@ -89,27 +88,22 @@ func initialize(t *testing.T, cfgfn func(*config.Config)) *resources {
 	require.NoError(t, err)
 
 	gitcmd = realgit.NewGitCmd(cfg)
-	wd, err := os.Getwd()
-	require.NoError(t, err)
-
-	repo, err := ngit.PlainOpen(wd)
-	require.NoError(t, err)
 
 	goghclient := gogithub.NewClient(nil).WithAuthToken(github.FindToken(cfg.Repo.GitHubHost))
 
 	ctx := context.Background()
 	client := githubclient.NewGitHubClient(ctx, cfg)
-	stackedpr := spr.NewStackedPR(cfg, client, gitcmd, repo, goghclient)
+	stackedpr := spr.NewStackedPR(cfg, client, gitcmd, goghclient)
 
 	// Direct the output to a mock Printer so we can test against the output
 	capout := output.MockPrinter()
 	stackedpr.Printer = capout
 
 	// Try and cleanup and reset the repo
-	state, err := bl.NewReadState(ctx, cfg, goghclient, repo)
+	state, err := bl.NewReadState(ctx, cfg, goghclient, gitcmd)
 	require.NoError(t, err)
 
-	gitapi := gitapi.New(cfg, repo, goghclient)
+	gitapi := gitapi.New(cfg, gitcmd, goghclient)
 	for _, commit := range state.Commits {
 		if commit.PullRequest != nil {
 			gitapi.DeletePullRequest(ctx, commit.PullRequest)
@@ -122,7 +116,6 @@ func initialize(t *testing.T, cfgfn func(*config.Config)) *resources {
 	r := &resources{
 		cfg:        cfg,
 		goghclient: goghclient,
-		repo:       repo,
 		gitshell:   gitcmd,
 		stackedpr:  stackedpr,
 		printer:    capout,
@@ -131,7 +124,7 @@ func initialize(t *testing.T, cfgfn func(*config.Config)) *resources {
 	// Add a function that will validate that all remote branches associated with any commits created by the unit test are
 	// cleaned up
 	r.validate = func() {
-		branches, err := gitapi.RemoteBranches()
+		branches, err := gitcmd.RemoteBranches()
 		require.NoError(t, err)
 		for _, commitId := range r.commitIds {
 			branchName := fmt.Sprintf("refs/heads/%s", git.BranchNameFromCommitId(r.cfg, commitId))
@@ -156,11 +149,28 @@ type commit struct {
 	contents string
 }
 
+// repo creates a *gogit.Repository the *gogit.Repository should not be shared between goroutines
+func repo() *ngit.Repository {
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(2)
+	}
+
+	repo, err := ngit.PlainOpenWithOptions(cwd, &ngit.PlainOpenOptions{DetectDotGit: true})
+	if err != nil {
+		fmt.Printf("%s is not a git repository\n", cwd)
+		os.Exit(2)
+	}
+
+	return repo
+}
+
 // createCommits creates the commits
-func (r *resources) createCommits(t *testing.T, repo *ngit.Repository, commits []commit) {
+func (r *resources) createCommits(t *testing.T, commits []commit) {
 	t.Helper()
 
-	worktree, err := repo.Worktree()
+	worktree, err := repo().Worktree()
 	require.NoError(t, err)
 
 	for _, commit := range commits {
@@ -184,13 +194,13 @@ func (r *resources) createCommits(t *testing.T, repo *ngit.Repository, commits [
 		})
 		require.NoError(t, err)
 
-		_, err = repo.CommitObject(commit)
+		_, err = repo().CommitObject(commit)
 		require.NoError(t, err)
 	}
 
 	// Capture the commit-ids for these commits so we can validate they got deleted
 	ctx := context.Background()
-	state, err := bl.NewReadState(ctx, r.cfg, r.goghclient, r.repo)
+	state, err := bl.NewReadState(ctx, r.cfg, r.goghclient, r.gitshell)
 	require.NoError(t, err)
 	for _, commit := range state.Commits {
 		r.commitIds = append(r.commitIds, commit.CommitID)
@@ -201,6 +211,9 @@ func (r *resources) createCommits(t *testing.T, repo *ngit.Repository, commits [
 func TestBasicCommitUpdateMergeWithNoSubsetPRSets(t *testing.T) {
 	ctx := context.Background()
 	resources := initialize(t, func(c *config.Config) {
+		c.Repo.PRTemplatePath = "./PRTemplate.integration"
+		c.Repo.PRTemplateInsertStart = "--START--"
+		c.Repo.PRTemplateInsertEnd = "--END--"
 	})
 	defer resources.validate()
 	name := prefix + t.Name()
@@ -212,7 +225,7 @@ func TestBasicCommitUpdateMergeWithNoSubsetPRSets(t *testing.T) {
 	})
 
 	t.Run("New commits are shown with spr status", func(t *testing.T) {
-		resources.createCommits(t, resources.repo, []commit{
+		resources.createCommits(t, []commit{
 			{
 				filename: name + "0",
 				contents: name + "0",
@@ -274,7 +287,7 @@ func TestBasicCommitUpdateMergeWithNoSubsetPRSetsInABranch(t *testing.T) {
 	})
 
 	t.Run("New commits are shown with spr status", func(t *testing.T) {
-		resources.createCommits(t, resources.repo, []commit{
+		resources.createCommits(t, []commit{
 			{
 				filename: name + "0",
 				contents: name + "0",
@@ -333,7 +346,7 @@ func TestBasicCommitUpdateMergeWithMultiplePRSets(t *testing.T) {
 	})
 
 	t.Run("New commits are shown with spr status", func(t *testing.T) {
-		resources.createCommits(t, resources.repo, []commit{
+		resources.createCommits(t, []commit{
 			{
 				filename: name + "0",
 				contents: name + "0",
@@ -410,7 +423,7 @@ func TestBasicCommitUpdateWithMergeConflictsWithSelectedCommits(t *testing.T) {
 	})
 
 	t.Run("New commits are shown with spr status", func(t *testing.T) {
-		resources.createCommits(t, resources.repo, []commit{
+		resources.createCommits(t, []commit{
 			{
 				filename: name + "0",
 				contents: name + "0",
@@ -457,7 +470,7 @@ func TestBasicCommitUpdateReOrderCommitsReUpdateMerge(t *testing.T) {
 	})
 
 	t.Run("New commits are shown with spr status", func(t *testing.T) {
-		resources.createCommits(t, resources.repo, []commit{
+		resources.createCommits(t, []commit{
 			{
 				filename: name + "0",
 				contents: name + "0",
@@ -494,7 +507,7 @@ func TestBasicCommitUpdateReOrderCommitsReUpdateMerge(t *testing.T) {
 	t.Run("Reorder commits", func(t *testing.T) {
 		// First get commit sha1s
 		var output string
-		state, err := bl.NewReadState(ctx, resources.cfg, resources.goghclient, resources.repo)
+		state, err := bl.NewReadState(ctx, resources.cfg, resources.goghclient, resources.gitshell)
 		require.NoError(t, err)
 
 		// Then reset hard
@@ -542,7 +555,7 @@ func TestBasicCommitUpdateRemoveCommitReUpdateMerge(t *testing.T) {
 	})
 
 	t.Run("New commits are shown with spr status", func(t *testing.T) {
-		resources.createCommits(t, resources.repo, []commit{
+		resources.createCommits(t, []commit{
 			{
 				filename: name + "0",
 				contents: name + "0",
@@ -579,7 +592,7 @@ func TestBasicCommitUpdateRemoveCommitReUpdateMerge(t *testing.T) {
 	t.Run("Remove a commit", func(t *testing.T) {
 		// First get commit sha1s
 		var output string
-		state, err := bl.NewReadState(ctx, resources.cfg, resources.goghclient, resources.repo)
+		state, err := bl.NewReadState(ctx, resources.cfg, resources.goghclient, resources.gitshell)
 		require.NoError(t, err)
 
 		// Then reset hard
@@ -630,7 +643,7 @@ func TestBasicCommitUpdateMergeWithMergeCheck(t *testing.T) {
 	})
 
 	t.Run("New commits are shown with spr status", func(t *testing.T) {
-		resources.createCommits(t, resources.repo, []commit{
+		resources.createCommits(t, []commit{
 			{
 				filename: name + "0",
 				contents: name + "0",

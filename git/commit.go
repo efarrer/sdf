@@ -1,6 +1,12 @@
 package git
 
-import "context"
+import (
+	"context"
+
+	mapset "github.com/deckarep/golang-set/v2"
+
+	"github.com/go-git/go-git/v5/plumbing/object"
+)
 
 type GitInterface interface {
 	GitWithEditor(args string, output *string, editorCmd string) error
@@ -9,6 +15,14 @@ type GitInterface interface {
 	RootDir() string
 	DeleteRemoteBranch(ctx context.Context, branch string) error
 	GetLocalBranchShortName() (string, error)
+	Fetch(remoteName string, prune bool) error
+	Reference(name string, resolved bool) (string, error)
+	Push(remoteName string, refspecs []string) error
+	RemoteBranches() (mapset.Set[string], error)
+	BranchExists(branchName string) (bool, error)
+	OriginMainRef(ctx context.Context) (string, error)
+	OriginBranchRef(ctx context.Context, branch string) (string, error)
+	UnMergedCommits(ctx context.Context) ([]*object.Commit, error)
 }
 
 // Commit has all the git commit info

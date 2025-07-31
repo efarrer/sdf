@@ -20,6 +20,20 @@ func TestAsync1Ret1(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestAsync2Ret1(t *testing.T) {
+	await := concurrent.Async2Ret1(
+		func(a, b int) error {
+			return nil
+		},
+		1,
+		2,
+	)
+
+	err := await.Await()
+
+	require.NoError(t, err)
+}
+
 func TestAsync4Ret3(t *testing.T) {
 	await := concurrent.Async4Ret3(
 		func(a, b, c, d int) (int, int, error) {

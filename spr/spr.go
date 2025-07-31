@@ -26,18 +26,16 @@ import (
 	"github.com/ejoffe/spr/git"
 	"github.com/ejoffe/spr/github"
 	"github.com/ejoffe/spr/output"
-	ngit "github.com/go-git/go-git/v5"
 	gogithub "github.com/google/go-github/v69/github"
 )
 
 // NewStackedPR constructs and returns a new stackediff instance.
-func NewStackedPR(config *config.Config, github github.GitHubInterface, gitcmd git.GitInterface, repo *ngit.Repository, goghclient *gogithub.Client) *Stackediff {
+func NewStackedPR(config *config.Config, github github.GitHubInterface, gitcmd git.GitInterface, goghclient *gogithub.Client) *Stackediff {
 
 	return &Stackediff{
 		config:       config,
 		github:       github,
 		gitcmd:       gitcmd,
-		repo:         repo,
 		goghclient:   goghclient,
 		profiletimer: profiletimer.StartNoopTimer(),
 
@@ -50,7 +48,6 @@ type Stackediff struct {
 	config       *config.Config
 	github       github.GitHubInterface
 	gitcmd       git.GitInterface
-	repo         *ngit.Repository
 	goghclient   *gogithub.Client
 	profiletimer profiletimer.Timer
 
@@ -279,7 +276,7 @@ func (sd *Stackediff) UpdatePullRequests(ctx context.Context, reviewers []string
 // We then close the other PRs.
 func (sd *Stackediff) MergePRSet(ctx context.Context, setIndex string) {
 	sd.profiletimer.Step("MergePRSet::Start")
-	gitapi := gitapi.New(sd.config, sd.repo, sd.goghclient)
+	gitapi := gitapi.New(sd.config, sd.gitcmd, sd.goghclient)
 
 	index, ok := selector.AsPRSet(setIndex)
 	if !ok {
@@ -289,7 +286,7 @@ func (sd *Stackediff) MergePRSet(ctx context.Context, setIndex string) {
 
 	// Merge the newest commit into main as it has all of the commits.
 	// Close the remaining commits
-	state, err := bl.NewReadState(ctx, sd.config, sd.goghclient, sd.repo)
+	state, err := bl.NewReadState(ctx, sd.config, sd.goghclient, sd.gitcmd)
 	check(err)
 	sd.profiletimer.Step("MergePRSet::NewReadState")
 
@@ -333,10 +330,7 @@ func (sd *Stackediff) MergePRSet(ctx context.Context, setIndex string) {
 				return struct{}{}, fmt.Errorf("unable to merge oldest PR in PR set %w", err)
 			}
 
-			err = sd.repo.Fetch(&ngit.FetchOptions{
-				RemoteName: sd.config.Repo.GitHubRemote,
-				Prune:      true,
-			})
+			err = sd.gitcmd.Fetch(sd.config.Repo.GitHubRemote, true)
 			if err != nil {
 				return struct{}{}, fmt.Errorf("unable to fetch merge changes %w", err)
 			}
@@ -361,22 +355,20 @@ func (sd *Stackediff) MergePRSet(ctx context.Context, setIndex string) {
 //   - If a new PR set overlaps with an existing one. The overlapped commits are pulled into the new PR set.
 func (sd *Stackediff) UpdatePRSets(ctx context.Context, sel string) {
 	sd.profiletimer.Step("UpdatePRSets::Start")
-	gitapi := gitapi.New(sd.config, sd.repo, sd.goghclient)
+	gitapi := gitapi.New(sd.config, sd.gitcmd, sd.goghclient)
 
 	// Add the commit-id to any commits that don't have it yet.
 	gitapi.AppendCommitId()
 	sd.profiletimer.Step("UpdatePRSets::AppndCommitId")
 
 	// Fetch/Prune from github remote
-	awaitFetch := concurrent.Async1Ret1(
-		sd.repo.Fetch,
-		&ngit.FetchOptions{
-			RemoteName: sd.config.Repo.GitHubRemote,
-			Prune:      true,
-		},
+	awaitFetch := concurrent.Async2Ret1(
+		sd.gitcmd.Fetch,
+		sd.config.Repo.GitHubRemote,
+		true,
 	)
 
-	state, err := bl.NewReadState(ctx, sd.config, sd.goghclient, sd.repo)
+	state, err := bl.NewReadState(ctx, sd.config, sd.goghclient, sd.gitcmd)
 	check(err)
 	sd.profiletimer.Step("UpdatePRSets::NewReadState")
 
@@ -511,7 +503,7 @@ func (sd *Stackediff) UpdatePRSets(ctx context.Context, sel string) {
 // removed from state.
 func (sd *Stackediff) StatusCommitsAndPRSets(ctx context.Context) {
 	sd.profiletimer.Step("StatusCommitsAndPRSets::Start")
-	state, err := bl.NewReadState(ctx, sd.config, sd.goghclient, sd.repo)
+	state, err := bl.NewReadState(ctx, sd.config, sd.goghclient, sd.gitcmd)
 	check(err)
 	sd.profiletimer.Step("StatusCommitsAndPRSets::NewReadState")
 

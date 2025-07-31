@@ -11,7 +11,6 @@ import (
 	"github.com/ejoffe/spr/github"
 	"github.com/ejoffe/spr/github/githubclient"
 	"github.com/ejoffe/spr/spr"
-	ngit "github.com/go-git/go-git/v5"
 	gogithub "github.com/google/go-github/v69/github"
 	"github.com/jessevdk/go-flags"
 	"github.com/rs/zerolog"
@@ -56,19 +55,9 @@ func main() {
 	cfg := config_parser.ParseConfig(gitcmd)
 	client := githubclient.NewGitHubClient(ctx, cfg)
 	gitcmd = realgit.NewGitCmd(cfg)
-	wd, err := os.Getwd()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(2)
-	}
-	repo, err := ngit.PlainOpen(wd)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(2)
-	}
 	goghclient := gogithub.NewClient(nil).WithAuthToken(github.FindToken(cfg.Repo.GitHubHost))
 
-	sd := spr.NewStackedPR(cfg, client, gitcmd, repo, goghclient)
+	sd := spr.NewStackedPR(cfg, client, gitcmd, goghclient)
 	sd.AmendCommit(ctx)
 
 	if opts.Update {

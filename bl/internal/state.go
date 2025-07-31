@@ -15,9 +15,7 @@ import (
 	"github.com/ejoffe/spr/config"
 	"github.com/ejoffe/spr/git"
 	"github.com/ejoffe/spr/github"
-	ngit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/plumbing/storer"
 	gogithub "github.com/google/go-github/v69/github"
 )
 
@@ -164,11 +162,11 @@ func derefOrDefault[T any](ptr *T) T {
 
 // NewReadState pulls git and github information and constructs the state of the local unmerged commits.
 // The resulting State contains the ordered and linked commits along with their associated PRs
-func NewReadState(ctx context.Context, config *config.Config, goghclient *gogithub.Client, repo *ngit.Repository) (*State, error) {
+func NewReadState(ctx context.Context, config *config.Config, goghclient *gogithub.Client, gitcmd git.GitInterface) (*State, error) {
 	repoOwner := config.Repo.GitHubRepoOwner
 	repoName := config.Repo.GitHubRepoName
 
-	gitapi := gitapi.New(config, repo, goghclient)
+	gitapi := gitapi.New(config, gitcmd, goghclient)
 	gitapi.AppendCommitId()
 
 	prs, _, err := goghclient.PullRequests.List(
@@ -218,30 +216,10 @@ func NewReadState(ctx context.Context, config *config.Config, goghclient *gogith
 		return nil, err
 	}
 
-	headRef, err := repo.Head()
+	commits, err := gitcmd.UnMergedCommits(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("getting repo HEAD %w", err)
+		return nil, fmt.Errorf("getting unmerged commits %w", err)
 	}
-
-	originMainRef, err := gitapi.OriginMainRef(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("getting origin main ref %w", err)
-	}
-
-	commitIter, err := repo.Log(&ngit.LogOptions{From: headRef.Hash()})
-	if err != nil {
-		return nil, fmt.Errorf("getting iterator for commits %w", err)
-	}
-
-	commits := []*object.Commit{}
-
-	commitIter.ForEach(func(cm *object.Commit) error {
-		if originMainRef.Hash().String() == cm.Hash.String() {
-			return storer.ErrStop
-		}
-		commits = append(commits, cm)
-		return nil
-	})
 
 	return NewState(ctx, config, prss, commits)
 }

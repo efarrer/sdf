@@ -29,6 +29,22 @@ func Async1Ret1[A any](
 	return await1{ch: ch}
 }
 
+func Async2Ret1[A, B any](
+	fn func(A, B) error,
+	a A,
+	b B,
+) await1 {
+
+	ch := make(chan ret1)
+
+	go func() {
+		err := fn(a, b)
+		ch <- ret1{err: err}
+	}()
+
+	return await1{ch: ch}
+}
+
 type ret3[R0, R1 any] struct {
 	v0  R0
 	v1  R1
