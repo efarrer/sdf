@@ -14,21 +14,6 @@ func (a await1) Await() error {
 	return r.err
 }
 
-func Async1Ret1[A any](
-	fn func(A) error,
-	a A,
-) await1 {
-
-	ch := make(chan ret1)
-
-	go func() {
-		err := fn(a)
-		ch <- ret1{err: err}
-	}()
-
-	return await1{ch: ch}
-}
-
 func Async2Ret1[A, B any](
 	fn func(A, B) error,
 	a A,
