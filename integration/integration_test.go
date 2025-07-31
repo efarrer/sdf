@@ -19,7 +19,7 @@ import (
 	"github.com/ejoffe/spr/git/realgit"
 	"github.com/ejoffe/spr/github"
 	"github.com/ejoffe/spr/github/githubclient"
-	"github.com/ejoffe/spr/output"
+	"github.com/ejoffe/spr/output/mockoutput"
 	"github.com/ejoffe/spr/spr"
 	ngit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -44,7 +44,7 @@ type resources struct {
 	goghclient *gogithub.Client
 	gitshell   git.GitInterface
 	stackedpr  *spr.Stackediff
-	printer    *output.CapturedOutput
+	printer    *mockoutput.CapturedOutput
 	commitIds  []string
 	validate   func()
 }
@@ -96,7 +96,7 @@ func initialize(t *testing.T, cfgfn func(*config.Config)) *resources {
 	stackedpr := spr.NewStackedPR(cfg, client, gitcmd, goghclient)
 
 	// Direct the output to a mock Printer so we can test against the output
-	capout := output.MockPrinter()
+	capout := mockoutput.MockPrinter()
 	stackedpr.Printer = capout
 
 	// Try and cleanup and reset the repo

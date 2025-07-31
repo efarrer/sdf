@@ -12,12 +12,12 @@ import (
 	"github.com/ejoffe/spr/github"
 	"github.com/ejoffe/spr/github/mockclient"
 	"github.com/ejoffe/spr/mock"
-	"github.com/ejoffe/spr/output"
+	"github.com/ejoffe/spr/output/mockoutput"
 )
 
 func makeTestObjects(t *testing.T, synchronized bool) (
 	s *Stackediff, gitmock *mockgit.Mock, githubmock *mockclient.MockClient,
-	input *bytes.Buffer, capout *output.CapturedOutput) {
+	input *bytes.Buffer, capout *mockoutput.CapturedOutput) {
 	cfg := config.EmptyConfig()
 	cfg.Repo.RequireChecks = true
 	cfg.Repo.RequireApproval = true
@@ -33,7 +33,7 @@ func makeTestObjects(t *testing.T, synchronized bool) (
 		LocalBranch:  "master",
 	}
 	s = NewStackedPR(cfg, githubmock, gitmock, nil)
-	capout = output.MockPrinter()
+	capout = mockoutput.MockPrinter()
 	s.Printer = capout
 
 	input = &bytes.Buffer{}
