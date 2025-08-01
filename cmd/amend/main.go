@@ -8,10 +8,8 @@ import (
 	"github.com/ejoffe/spr/config"
 	"github.com/ejoffe/spr/config/config_parser"
 	"github.com/ejoffe/spr/git/realgit"
-	"github.com/ejoffe/spr/github"
 	"github.com/ejoffe/spr/github/githubclient"
 	"github.com/ejoffe/spr/spr"
-	gogithub "github.com/google/go-github/v69/github"
 	"github.com/jessevdk/go-flags"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -55,9 +53,8 @@ func main() {
 	cfg := config_parser.ParseConfig(gitcmd)
 	client := githubclient.NewGitHubClient(ctx, cfg)
 	gitcmd = realgit.NewGitCmd(cfg)
-	goghclient := gogithub.NewClient(nil).WithAuthToken(github.FindToken(cfg.Repo.GitHubHost))
 
-	sd := spr.NewStackedPR(cfg, client, gitcmd, goghclient)
+	sd := spr.NewStackedPR(cfg, client, gitcmd)
 	sd.AmendCommit(ctx)
 
 	if opts.Update {

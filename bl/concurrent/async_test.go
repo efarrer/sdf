@@ -36,6 +36,20 @@ func TestAsync4Ret3(t *testing.T) {
 	require.Equal(t, 24, mult)
 }
 
+func TestAsync4Ret2(t *testing.T) {
+	await := concurrent.Async4Ret2(
+		func(a, b, c, d int) (int, error) {
+			return a + b + c + d, nil
+		},
+		1, 2, 3, 4,
+	)
+
+	add, err := await.Await()
+
+	require.NoError(t, err)
+	require.Equal(t, 10, add)
+}
+
 func TestAsync5Ret3(t *testing.T) {
 	await := concurrent.Async5Ret3(
 		func(a, b, c, d, e int) (int, int, error) {
@@ -49,4 +63,18 @@ func TestAsync5Ret3(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 15, add)
 	require.Equal(t, 120, mult)
+}
+
+func TestAsync5Ret2(t *testing.T) {
+	await := concurrent.Async5Ret2(
+		func(a, b, c, d, e int) (int, error) {
+			return a + b + c + d + e, nil
+		},
+		1, 2, 3, 4, 5,
+	)
+
+	add, err := await.Await()
+
+	require.NoError(t, err)
+	require.Equal(t, 15, add)
 }

@@ -162,55 +162,50 @@ func derefOrDefault[T any](ptr *T) T {
 
 // NewReadState pulls git and github information and constructs the state of the local unmerged commits.
 // The resulting State contains the ordered and linked commits along with their associated PRs
-func NewReadState(ctx context.Context, config *config.Config, goghclient *gogithub.Client, gitcmd git.GitInterface) (*State, error) {
+func NewReadState(ctx context.Context, config *config.Config, gitcmd git.GitInterface, github github.GitHubInterface) (*State, error) {
 	repoOwner := config.Repo.GitHubRepoOwner
 	repoName := config.Repo.GitHubRepoName
 
-	gitapi := gitapi.New(config, gitcmd, goghclient)
+	gitapi := gitapi.New(config, gitcmd, github)
 	gitapi.AppendCommitId()
 
-	prs, _, err := goghclient.PullRequests.List(
-		ctx,
-		repoOwner,
-		repoName,
-		nil,
-	)
+	prs, err := github.ListPullRequests(ctx, repoOwner, repoName, nil)
 	if err != nil {
 		return nil, fmt.Errorf("getting pull requests for %s/%s: %w", repoOwner, repoName, err)
 	}
 
 	prss, err := concurrent.SliceMap(prs, func(pr *gogithub.PullRequest) (PullRequestStatus, error) {
-		getCombinedAwait := concurrent.Async5Ret3(
-			goghclient.Repositories.GetCombinedStatus,
+		getCombinedAwait := concurrent.Async5Ret2(
+			github.GetCombinedStatus,
 			ctx, repoOwner, repoName, *pr.Head.SHA, nil,
 		)
 
-		prListReviewsAwait := concurrent.Async5Ret3(
-			goghclient.PullRequests.ListReviews,
+		prListReviewsAwait := concurrent.Async5Ret2(
+			github.ListPullRequestReviews,
 			ctx, repoOwner, repoName, *pr.Number, nil,
 		)
 
-		prGetAwait := concurrent.Async4Ret3(
-			goghclient.PullRequests.Get,
+		prGetAwait := concurrent.Async4Ret2(
+			github.GetPullRequest,
 			ctx, repoOwner, repoName, *pr.Number,
 		)
 
-		combinedStatus, _, err := getCombinedAwait.Await()
+		combinedStatus, err := getCombinedAwait.Await()
 		if err != nil {
 			return PullRequestStatus{}, fmt.Errorf("getting combined status for %s/%s PR:%d: %w", repoOwner, repoName, *pr.Number, err)
 		}
 
-		reviews, _, err := prListReviewsAwait.Await()
+		reviews, err := prListReviewsAwait.Await()
 		if err != nil {
 			return PullRequestStatus{}, fmt.Errorf("getting pull request reviews for %s/%s PR:%d: %w", repoOwner, repoName, *pr.Number, err)
 		}
 
-		pr, _, err = prGetAwait.Await()
+		prRes, err := prGetAwait.Await()
 		if err != nil {
 			return PullRequestStatus{}, fmt.Errorf("getting pull request details for %s/%s PR:%d: %w", repoOwner, repoName, *pr.Number, err)
 		}
 
-		return PullRequestStatus{PullRequest: pr, CombinedStatus: combinedStatus, Reviews: reviews}, nil
+		return PullRequestStatus{PullRequest: prRes, CombinedStatus: combinedStatus, Reviews: reviews}, nil
 	})
 	if err != nil {
 		return nil, err

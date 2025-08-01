@@ -26,17 +26,15 @@ import (
 	"github.com/ejoffe/spr/git"
 	"github.com/ejoffe/spr/github"
 	"github.com/ejoffe/spr/output"
-	gogithub "github.com/google/go-github/v69/github"
 )
 
 // NewStackedPR constructs and returns a new stackediff instance.
-func NewStackedPR(config *config.Config, github github.GitHubInterface, gitcmd git.GitInterface, goghclient *gogithub.Client) *Stackediff {
+func NewStackedPR(config *config.Config, github github.GitHubInterface, gitcmd git.GitInterface) *Stackediff {
 
 	return &Stackediff{
 		config:       config,
 		github:       github,
 		gitcmd:       gitcmd,
-		goghclient:   goghclient,
 		profiletimer: profiletimer.StartNoopTimer(),
 
 		Printer: output.New(os.Stdout),
@@ -48,7 +46,6 @@ type Stackediff struct {
 	config       *config.Config
 	github       github.GitHubInterface
 	gitcmd       git.GitInterface
-	goghclient   *gogithub.Client
 	profiletimer profiletimer.Timer
 
 	Printer      output.Printer
@@ -276,7 +273,7 @@ func (sd *Stackediff) UpdatePullRequests(ctx context.Context, reviewers []string
 // We then close the other PRs.
 func (sd *Stackediff) MergePRSet(ctx context.Context, setIndex string) {
 	sd.profiletimer.Step("MergePRSet::Start")
-	gitapi := gitapi.New(sd.config, sd.gitcmd, sd.goghclient)
+	gitapi := gitapi.New(sd.config, sd.gitcmd, sd.github)
 
 	index, ok := selector.AsPRSet(setIndex)
 	if !ok {
@@ -286,7 +283,7 @@ func (sd *Stackediff) MergePRSet(ctx context.Context, setIndex string) {
 
 	// Merge the newest commit into main as it has all of the commits.
 	// Close the remaining commits
-	state, err := bl.NewReadState(ctx, sd.config, sd.goghclient, sd.gitcmd)
+	state, err := bl.NewReadState(ctx, sd.config, sd.gitcmd, sd.github)
 	check(err)
 	sd.profiletimer.Step("MergePRSet::NewReadState")
 
@@ -355,7 +352,7 @@ func (sd *Stackediff) MergePRSet(ctx context.Context, setIndex string) {
 //   - If a new PR set overlaps with an existing one. The overlapped commits are pulled into the new PR set.
 func (sd *Stackediff) UpdatePRSets(ctx context.Context, sel string) {
 	sd.profiletimer.Step("UpdatePRSets::Start")
-	gitapi := gitapi.New(sd.config, sd.gitcmd, sd.goghclient)
+	gitapi := gitapi.New(sd.config, sd.gitcmd, sd.github)
 
 	// Add the commit-id to any commits that don't have it yet.
 	gitapi.AppendCommitId()
@@ -368,7 +365,7 @@ func (sd *Stackediff) UpdatePRSets(ctx context.Context, sel string) {
 		true,
 	)
 
-	state, err := bl.NewReadState(ctx, sd.config, sd.goghclient, sd.gitcmd)
+	state, err := bl.NewReadState(ctx, sd.config, sd.gitcmd, sd.github)
 	check(err)
 	sd.profiletimer.Step("UpdatePRSets::NewReadState")
 
@@ -503,7 +500,7 @@ func (sd *Stackediff) UpdatePRSets(ctx context.Context, sel string) {
 // removed from state.
 func (sd *Stackediff) StatusCommitsAndPRSets(ctx context.Context) {
 	sd.profiletimer.Step("StatusCommitsAndPRSets::Start")
-	state, err := bl.NewReadState(ctx, sd.config, sd.goghclient, sd.gitcmd)
+	state, err := bl.NewReadState(ctx, sd.config, sd.gitcmd, sd.github)
 	check(err)
 	sd.profiletimer.Step("StatusCommitsAndPRSets::NewReadState")
 

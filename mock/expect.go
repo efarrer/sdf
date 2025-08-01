@@ -61,14 +61,19 @@ func (co CommitOutputter) Output() *string {
 type operation string
 
 const (
-	GetInfoOP            operation = "GetInfo"
-	GetAssignableUsersOP operation = "GetAssignableUsers"
-	CreatePullRequestOP  operation = "CreatePullRequest"
-	UpdatePullRequestOP  operation = "UpdatePullRequest"
-	AddReviewersOP       operation = "AddReviewers"
-	CommentPullRequestOP operation = "CommentPullRequest"
-	MergePullRequestOP   operation = "MergePullRequest"
-	ClosePullRequestOP   operation = "ClosePullRequest"
+	GetInfoOP                = "GetInfo"
+	GetAssignableUsersOP     = "GetAssignableUsers"
+	CreatePullRequestOP      = "CreatePullRequest"
+	UpdatePullRequestOP      = "UpdatePullRequest"
+	AddReviewersOP           = "AddReviewers"
+	CommentPullRequestOP     = "CommentPullRequest"
+	MergePullRequestOP       = "MergePullRequest"
+	ClosePullRequestOP       = "ClosePullRequest"
+	EditPullRequestOP        = "EditPullRequest"
+	ListPullRequestsOP       = "ListPullRequests"
+	GetPullRequestOP         = "GetPullRequest"
+	ListPullRequestReviewsOP = "ListPullRequestReviews"
+	GetCombinedStatusOP      = "GetCombinedStatus"
 )
 
 type GithubExpectation struct {

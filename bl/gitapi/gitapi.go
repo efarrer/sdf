@@ -20,13 +20,13 @@ import (
 )
 
 type GitApi struct {
-	config     *config.Config
-	gitcmd     git.GitInterface
-	goghclient *gogithub.Client
+	config *config.Config
+	gitcmd git.GitInterface
+	github github.GitHubInterface
 }
 
-func New(config *config.Config, gitcmd git.GitInterface, goghclient *gogithub.Client) GitApi {
-	return GitApi{config: config, gitcmd: gitcmd, goghclient: goghclient}
+func New(config *config.Config, gitcmd git.GitInterface, github github.GitHubInterface) GitApi {
+	return GitApi{config: config, gitcmd: gitcmd, github: github}
 }
 
 // DeletePullRequest deletes the pull request and the associated branch
@@ -34,7 +34,7 @@ func (gapi GitApi) DeletePullRequest(ctx context.Context, pr *github.PullRequest
 	owner := gapi.config.Repo.GitHubRepoOwner
 	repoName := gapi.config.Repo.GitHubRepoName
 
-	_, _, err := gapi.goghclient.PullRequests.Edit(ctx, owner, repoName, pr.Number, &gogithub.PullRequest{State: gogithub.Ptr("closed")})
+	err := gapi.github.EditPullRequest2(ctx, owner, repoName, pr.Number, &gogithub.PullRequest{State: gogithub.Ptr("closed")})
 	if err != nil {
 		return fmt.Errorf("deleting pr %d %w", pr.Number, err)
 	}
@@ -176,7 +176,7 @@ func (gapi GitApi) CreatePullRequest(
 	owner := gapi.config.Repo.GitHubRepoOwner
 	repoName := gapi.config.Repo.GitHubRepoName
 
-	resp, _, err := gapi.goghclient.PullRequests.Create(ctx, owner, repoName, &gogithub.NewPullRequest{
+	resp, err := gapi.github.CreatePullRequest2(ctx, owner, repoName, &gogithub.NewPullRequest{
 		Title:    &commit.Subject,
 		Head:     &headRefName,
 		HeadRepo: &gapi.config.Repo.GitHubRepoName,
@@ -263,7 +263,7 @@ func (gapi GitApi) updatePullRequest(
 	base := gogithub.PullRequestBranch{
 		Ref: gogithub.Ptr(baseRefName),
 	}
-	_, _, err = gapi.goghclient.PullRequests.Edit(ctx, owner, repoName, pr.Number, &gogithub.PullRequest{
+	err = gapi.github.EditPullRequest2(ctx, owner, repoName, pr.Number, &gogithub.PullRequest{
 		ID:    &id,
 		Title: title,
 		Body:  &body,
@@ -288,7 +288,7 @@ func (gapi GitApi) MergePullRequest(
 	// Get the merge method
 	mergeMethod := gapi.config.Repo.MergeMethod
 
-	_, _, err := gapi.goghclient.PullRequests.Merge(ctx, owner, repoName, pr.Number, "", &gogithub.PullRequestOptions{
+	err := gapi.github.MergePullRequest2(ctx, owner, repoName, pr.Number, "", &gogithub.PullRequestOptions{
 		MergeMethod: string(mergeMethod),
 	})
 	if err != nil {

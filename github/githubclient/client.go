@@ -15,6 +15,7 @@ import (
 	"github.com/ejoffe/spr/github"
 	"github.com/ejoffe/spr/github/githubclient/fezzik_types"
 	"github.com/ejoffe/spr/github/githubclient/gen/genclient"
+	gogithub "github.com/google/go-github/v69/github"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/oauth2"
 )
@@ -66,15 +67,18 @@ func NewGitHubClient(ctx context.Context, config *config.Config) *client {
 		}
 		api = genclient.NewClient(fmt.Sprintf("%s://%s/api/graphql", scheme, host), tc)
 	}
+	goghclient := gogithub.NewClient(nil).WithAuthToken(github.FindToken(config.Repo.GitHubHost))
 	return &client{
-		config: config,
-		api:    api,
+		config:     config,
+		api:        api,
+		goghclient: goghclient,
 	}
 }
 
 type client struct {
-	config *config.Config
-	api    genclient.Client
+	config     *config.Config
+	api        genclient.Client
+	goghclient *gogithub.Client
 }
 
 func (c *client) GetInfo(ctx context.Context, gitcmd git.GitInterface) *github.GitHubInfo {
@@ -335,6 +339,11 @@ func (c *client) CreatePullRequest(ctx context.Context, gitcmd git.GitInterface,
 	return pr
 }
 
+func (c *client) CreatePullRequest2(ctx context.Context, owner string, repoName string, pull *gogithub.NewPullRequest) (*gogithub.PullRequest, error) {
+	resp, _, err := c.goghclient.PullRequests.Create(ctx, owner, repoName, pull)
+	return resp, err
+}
+
 func formatStackMarkdown(commit git.Commit, stack []*github.PullRequest, showPrTitlesInStack bool) string {
 	var buf bytes.Buffer
 	for i := len(stack) - 1; i >= 0; i-- {
@@ -574,6 +583,17 @@ func (c *client) MergePullRequest(ctx context.Context,
 	}
 }
 
+func (c *client) MergePullRequest2(ctx context.Context, owner string, repoName string, number int, commitMessage string, options *gogithub.PullRequestOptions) error {
+	_, _, err := c.goghclient.PullRequests.Merge(ctx, owner, repoName, number, commitMessage, options)
+
+	return err
+}
+
+func (c *client) EditPullRequest2(ctx context.Context, owner string, repoName string, number int, pull *gogithub.PullRequest) error {
+	_, _, err := c.goghclient.PullRequests.Edit(ctx, owner, repoName, number, pull)
+	return err
+}
+
 func (c *client) ClosePullRequest(ctx context.Context, pr *github.PullRequest) {
 	log.Debug().Interface("PR", pr).Msg("ClosePullRequest")
 	_, err := c.api.ClosePullRequest(ctx, genclient.ClosePullRequestInput{
@@ -595,6 +615,26 @@ func (c *client) ClosePullRequest(ctx context.Context, pr *github.PullRequest) {
 
 func (c *client) GetClient() genclient.Client {
 	return c.api
+}
+
+func (c *client) ListPullRequests(ctx context.Context, owner string, repo string, opts *gogithub.PullRequestListOptions) ([]*gogithub.PullRequest, error) {
+	prs, _, err := c.goghclient.PullRequests.List(ctx, owner, repo, opts)
+	return prs, err
+}
+
+func (c *client) GetPullRequest(ctx context.Context, owner string, repo string, number int) (*gogithub.PullRequest, error) {
+	pr, _, err := c.goghclient.PullRequests.Get(ctx, owner, repo, number)
+	return pr, err
+}
+
+func (c *client) ListPullRequestReviews(ctx context.Context, owner string, repo string, number int, opts *gogithub.ListOptions) ([]*gogithub.PullRequestReview, error) {
+	reviews, _, err := c.goghclient.PullRequests.ListReviews(ctx, owner, repo, number, opts)
+	return reviews, err
+}
+
+func (c *client) GetCombinedStatus(ctx context.Context, owner string, repo string, ref string, opts *gogithub.ListOptions) (*gogithub.CombinedStatus, error) {
+	combinedStatus, _, err := c.goghclient.Repositories.GetCombinedStatus(ctx, owner, repo, ref, opts)
+	return combinedStatus, err
 }
 
 func check(err error) {

@@ -23,7 +23,6 @@ import (
 	"github.com/ejoffe/spr/spr"
 	ngit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	gogithub "github.com/google/go-github/v69/github"
 	"github.com/stretchr/testify/require"
 )
 
@@ -40,13 +39,13 @@ var prefix string = ""
 
 // resoruces contains various resources for unit testing
 type resources struct {
-	cfg        *config.Config
-	goghclient *gogithub.Client
-	gitshell   git.GitInterface
-	stackedpr  *spr.Stackediff
-	printer    *mockoutput.CapturedOutput
-	commitIds  []string
-	validate   func()
+	cfg       *config.Config
+	github    github.GitHubInterface
+	gitshell  git.GitInterface
+	stackedpr *spr.Stackediff
+	printer   *mockoutput.CapturedOutput
+	commitIds []string
+	validate  func()
 }
 
 func initialize(t *testing.T, cfgfn func(*config.Config)) *resources {
@@ -89,21 +88,19 @@ func initialize(t *testing.T, cfgfn func(*config.Config)) *resources {
 
 	gitcmd = realgit.NewGitCmd(cfg)
 
-	goghclient := gogithub.NewClient(nil).WithAuthToken(github.FindToken(cfg.Repo.GitHubHost))
-
 	ctx := context.Background()
 	client := githubclient.NewGitHubClient(ctx, cfg)
-	stackedpr := spr.NewStackedPR(cfg, client, gitcmd, goghclient)
+	stackedpr := spr.NewStackedPR(cfg, client, gitcmd)
 
 	// Direct the output to a mock Printer so we can test against the output
 	capout := mockoutput.MockPrinter()
 	stackedpr.Printer = capout
 
 	// Try and cleanup and reset the repo
-	state, err := bl.NewReadState(ctx, cfg, goghclient, gitcmd)
+	state, err := bl.NewReadState(ctx, cfg, gitcmd, client)
 	require.NoError(t, err)
 
-	gitapi := gitapi.New(cfg, gitcmd, goghclient)
+	gitapi := gitapi.New(cfg, gitcmd, client)
 	for _, commit := range state.Commits {
 		if commit.PullRequest != nil {
 			gitapi.DeletePullRequest(ctx, commit.PullRequest)
@@ -114,11 +111,11 @@ func initialize(t *testing.T, cfgfn func(*config.Config)) *resources {
 	require.NoError(t, err)
 
 	r := &resources{
-		cfg:        cfg,
-		goghclient: goghclient,
-		gitshell:   gitcmd,
-		stackedpr:  stackedpr,
-		printer:    capout,
+		cfg:       cfg,
+		github:    client,
+		gitshell:  gitcmd,
+		stackedpr: stackedpr,
+		printer:   capout,
 	}
 
 	// Add a function that will validate that all remote branches associated with any commits created by the unit test are
@@ -200,7 +197,7 @@ func (r *resources) createCommits(t *testing.T, commits []commit) {
 
 	// Capture the commit-ids for these commits so we can validate they got deleted
 	ctx := context.Background()
-	state, err := bl.NewReadState(ctx, r.cfg, r.goghclient, r.gitshell)
+	state, err := bl.NewReadState(ctx, r.cfg, r.gitshell, r.github)
 	require.NoError(t, err)
 	for _, commit := range state.Commits {
 		r.commitIds = append(r.commitIds, commit.CommitID)
@@ -507,7 +504,7 @@ func TestBasicCommitUpdateReOrderCommitsReUpdateMerge(t *testing.T) {
 	t.Run("Reorder commits", func(t *testing.T) {
 		// First get commit sha1s
 		var output string
-		state, err := bl.NewReadState(ctx, resources.cfg, resources.goghclient, resources.gitshell)
+		state, err := bl.NewReadState(ctx, resources.cfg, resources.gitshell, resources.github)
 		require.NoError(t, err)
 
 		// Then reset hard
@@ -592,7 +589,7 @@ func TestBasicCommitUpdateRemoveCommitReUpdateMerge(t *testing.T) {
 	t.Run("Remove a commit", func(t *testing.T) {
 		// First get commit sha1s
 		var output string
-		state, err := bl.NewReadState(ctx, resources.cfg, resources.goghclient, resources.gitshell)
+		state, err := bl.NewReadState(ctx, resources.cfg, resources.gitshell, resources.github)
 		require.NoError(t, err)
 
 		// Then reset hard

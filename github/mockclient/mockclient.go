@@ -8,6 +8,7 @@ import (
 	"github.com/ejoffe/spr/github"
 	"github.com/ejoffe/spr/github/githubclient/gen/genclient"
 	"github.com/ejoffe/spr/mock"
+	gogithub "github.com/google/go-github/v69/github"
 )
 
 const (
@@ -62,12 +63,10 @@ func (c *MockClient) CreatePullRequest(ctx context.Context, gitcmd git.GitInterf
 	// TODO - don't hardcode ID and Number
 	// TODO - set FromBranch and ToBranch correctly
 	return &github.PullRequest{
-		ID:         "001",
-		Number:     1,
-		FromBranch: "from_branch",
-		ToBranch:   "to_branch",
-		Commit:     commit,
-		Title:      commit.Subject,
+		ID:     "001",
+		Number: 1,
+		Commit: commit,
+		Title:  commit.Subject,
 		MergeStatus: github.PullRequestMergeStatus{
 			ChecksPass:     github.CheckStatusPass,
 			ReviewApproved: true,
@@ -75,6 +74,22 @@ func (c *MockClient) CreatePullRequest(ctx context.Context, gitcmd git.GitInterf
 			Stacked:        true,
 		},
 	}
+}
+
+func (c *MockClient) CreatePullRequest2(ctx context.Context, owner string, repoName string, pull *gogithub.NewPullRequest) (*gogithub.PullRequest, error) {
+	fmt.Printf("HUB: CreatePullRequest2\n")
+	c.expectations.GithubApi(mock.GithubExpectation{
+		Op: mock.CreatePullRequestOP,
+	})
+
+	// TODO - don't hardcode ID and Number
+	// TODO - set FromBranch and ToBranch correctly
+	return &gogithub.PullRequest{
+		ID:      gogithub.Ptr[int64](1),
+		Number:  gogithub.Ptr(1),
+		Commits: gogithub.Ptr(1),
+		Title:   pull.Title,
+	}, nil
 }
 
 func (c *MockClient) UpdatePullRequest(ctx context.Context, gitcmd git.GitInterface, pullRequests []*github.PullRequest, pr *github.PullRequest, commit git.Commit, prevCommit *git.Commit) {
@@ -101,6 +116,22 @@ func (c *MockClient) CommentPullRequest(ctx context.Context, pr *github.PullRequ
 	})
 }
 
+func (c *MockClient) MergePullRequest2(ctx context.Context, owner string, repo string, number int, commitMessage string, options *gogithub.PullRequestOptions) error {
+	fmt.Printf("HUB: MergePullRequest2\n")
+	c.expectations.GithubApi(mock.GithubExpectation{
+		Op: mock.MergePullRequestOP,
+	})
+	return nil
+}
+
+func (c *MockClient) EditPullRequest2(ctx context.Context, owner string, repo string, number int, pull *gogithub.PullRequest) error {
+	fmt.Printf("HUB: EditPullRequest2\n")
+	c.expectations.GithubApi(mock.GithubExpectation{
+		Op: mock.EditPullRequestOP,
+	})
+	return nil
+}
+
 func (c *MockClient) MergePullRequest(ctx context.Context,
 	pr *github.PullRequest, mergeMethod genclient.PullRequestMergeMethod) {
 	fmt.Printf("HUB: MergePullRequest, method=%q\n", mergeMethod)
@@ -122,6 +153,49 @@ func (c *MockClient) ClosePullRequest(ctx context.Context, pr *github.PullReques
 func (c *MockClient) GetClient() genclient.Client {
 	// This client can't be used it is just to satisfy the interface
 	return genclient.NewClient("", nil)
+}
+
+func (c *MockClient) ListPullRequests(ctx context.Context, owner string, repo string, opts *gogithub.PullRequestListOptions) ([]*gogithub.PullRequest, error) {
+	fmt.Printf("HUB: ListPullRequests\n")
+	c.expectations.GithubApi(mock.GithubExpectation{
+		Op: mock.ListPullRequestsOP,
+	})
+	// Return empty list for mock
+	return []*gogithub.PullRequest{}, nil
+}
+
+func (c *MockClient) GetPullRequest(ctx context.Context, owner string, repo string, number int) (*gogithub.PullRequest, error) {
+	fmt.Printf("HUB: GetPullRequest\n")
+	c.expectations.GithubApi(mock.GithubExpectation{
+		Op: mock.GetPullRequestOP,
+	})
+	// Return a mock pull request
+	return &gogithub.PullRequest{
+		ID:     gogithub.Ptr[int64](1),
+		Number: gogithub.Ptr(number),
+		Title:  gogithub.Ptr("Mock Pull Request"),
+	}, nil
+}
+
+func (c *MockClient) ListPullRequestReviews(ctx context.Context, owner string, repo string, number int, opts *gogithub.ListOptions) ([]*gogithub.PullRequestReview, error) {
+	fmt.Printf("HUB: ListPullRequestReviews\n")
+	c.expectations.GithubApi(mock.GithubExpectation{
+		Op: mock.ListPullRequestReviewsOP,
+	})
+	// Return empty list for mock
+	return []*gogithub.PullRequestReview{}, nil
+}
+
+func (c *MockClient) GetCombinedStatus(ctx context.Context, owner string, repo string, ref string, opts *gogithub.ListOptions) (*gogithub.CombinedStatus, error) {
+	fmt.Printf("HUB: GetCombinedStatus\n")
+	c.expectations.GithubApi(mock.GithubExpectation{
+		Op: mock.GetCombinedStatusOP,
+	})
+	// Return a mock combined status
+	return &gogithub.CombinedStatus{
+		State:      gogithub.Ptr("success"),
+		TotalCount: gogithub.Ptr(1),
+	}, nil
 }
 
 func (c *MockClient) ExpectGetInfo() {

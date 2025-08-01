@@ -46,6 +46,21 @@ func (a await3[R0, R1]) Await() (R0, R1, error) {
 	return r.v0, r.v1, r.err
 }
 
+type ret2[R0 any] struct {
+	v0  R0
+	err error
+}
+
+type await2[R0 any] struct {
+	ch chan ret2[R0]
+}
+
+func (a await2[R0]) Await() (R0, error) {
+	r := <-a.ch
+
+	return r.v0, r.err
+}
+
 func Async4Ret3[A, B, C, D any, R0, R1 any](
 	fn func(A, B, C, D) (R0, R1, error),
 	a A, b B, c C, d D,
@@ -61,6 +76,21 @@ func Async4Ret3[A, B, C, D any, R0, R1 any](
 	return await3[R0, R1]{ch: ch}
 }
 
+func Async4Ret2[A, B, C, D any, R0 any](
+	fn func(A, B, C, D) (R0, error),
+	a A, b B, c C, d D,
+) await2[R0] {
+
+	ch := make(chan ret2[R0])
+
+	go func() {
+		v0, err := fn(a, b, c, d)
+		ch <- ret2[R0]{v0: v0, err: err}
+	}()
+
+	return await2[R0]{ch: ch}
+}
+
 func Async5Ret3[A, B, C, D, E any, R0, R1 any](
 	fn func(A, B, C, D, E) (R0, R1, error),
 	a A, b B, c C, d D, e E,
@@ -74,4 +104,19 @@ func Async5Ret3[A, B, C, D, E any, R0, R1 any](
 	}()
 
 	return await3[R0, R1]{ch: ch}
+}
+
+func Async5Ret2[A, B, C, D, E any, R0 any](
+	fn func(A, B, C, D, E) (R0, error),
+	a A, b B, c C, d D, e E,
+) await2[R0] {
+
+	ch := make(chan ret2[R0])
+
+	go func() {
+		v0, err := fn(a, b, c, d, e)
+		ch <- ret2[R0]{v0: v0, err: err}
+	}()
+
+	return await2[R0]{ch: ch}
 }
