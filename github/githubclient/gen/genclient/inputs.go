@@ -155,6 +155,7 @@ const (
 	DependencyGraphEcosystem_PUB      DependencyGraphEcosystem = "PUB"
 	DependencyGraphEcosystem_RUBYGEMS DependencyGraphEcosystem = "RUBYGEMS"
 	DependencyGraphEcosystem_RUST     DependencyGraphEcosystem = "RUST"
+	DependencyGraphEcosystem_SWIFT    DependencyGraphEcosystem = "SWIFT"
 )
 
 type DeploymentOrderField string
@@ -166,6 +167,7 @@ const (
 type DeploymentProtectionRuleType string
 
 const (
+	DeploymentProtectionRuleType_BRANCH_POLICY      DeploymentProtectionRuleType = "BRANCH_POLICY"
 	DeploymentProtectionRuleType_REQUIRED_REVIEWERS DeploymentProtectionRuleType = "REQUIRED_REVIEWERS"
 	DeploymentProtectionRuleType_WAIT_TIMER         DeploymentProtectionRuleType = "WAIT_TIMER"
 )
@@ -272,6 +274,7 @@ type EnterpriseAdministratorRole string
 const (
 	EnterpriseAdministratorRole_BILLING_MANAGER EnterpriseAdministratorRole = "BILLING_MANAGER"
 	EnterpriseAdministratorRole_OWNER           EnterpriseAdministratorRole = "OWNER"
+	EnterpriseAdministratorRole_UNAFFILIATED    EnterpriseAdministratorRole = "UNAFFILIATED"
 )
 
 type EnterpriseAllowPrivateRepositoryForkingPolicyValue string
@@ -295,6 +298,13 @@ const (
 	EnterpriseDefaultRepositoryPermissionSettingValue_WRITE     EnterpriseDefaultRepositoryPermissionSettingValue = "WRITE"
 )
 
+type EnterpriseDisallowedMethodsSettingValue string
+
+const (
+	EnterpriseDisallowedMethodsSettingValue_INSECURE  EnterpriseDisallowedMethodsSettingValue = "INSECURE"
+	EnterpriseDisallowedMethodsSettingValue_NO_POLICY EnterpriseDisallowedMethodsSettingValue = "NO_POLICY"
+)
+
 type EnterpriseEnabledDisabledSettingValue string
 
 const (
@@ -308,6 +318,12 @@ type EnterpriseEnabledSettingValue string
 const (
 	EnterpriseEnabledSettingValue_ENABLED   EnterpriseEnabledSettingValue = "ENABLED"
 	EnterpriseEnabledSettingValue_NO_POLICY EnterpriseEnabledSettingValue = "NO_POLICY"
+)
+
+type EnterpriseMemberInvitationOrderField string
+
+const (
+	EnterpriseMemberInvitationOrderField_CREATED_AT EnterpriseMemberInvitationOrderField = "CREATED_AT"
 )
 
 type EnterpriseMemberOrderField string
@@ -332,6 +348,21 @@ type EnterpriseMembersCanMakePurchasesSettingValue string
 const (
 	EnterpriseMembersCanMakePurchasesSettingValue_DISABLED EnterpriseMembersCanMakePurchasesSettingValue = "DISABLED"
 	EnterpriseMembersCanMakePurchasesSettingValue_ENABLED  EnterpriseMembersCanMakePurchasesSettingValue = "ENABLED"
+)
+
+type EnterpriseMembershipType string
+
+const (
+	EnterpriseMembershipType_ADMIN           EnterpriseMembershipType = "ADMIN"
+	EnterpriseMembershipType_ALL             EnterpriseMembershipType = "ALL"
+	EnterpriseMembershipType_BILLING_MANAGER EnterpriseMembershipType = "BILLING_MANAGER"
+	EnterpriseMembershipType_ORG_MEMBERSHIP  EnterpriseMembershipType = "ORG_MEMBERSHIP"
+)
+
+type EnterpriseOrderField string
+
+const (
+	EnterpriseOrderField_NAME EnterpriseOrderField = "NAME"
 )
 
 type EnterpriseServerInstallationOrderField string
@@ -384,6 +415,20 @@ const (
 	EnterpriseUserDeployment_SERVER EnterpriseUserDeployment = "SERVER"
 )
 
+type EnvironmentOrderField string
+
+const (
+	EnvironmentOrderField_NAME EnvironmentOrderField = "NAME"
+)
+
+type EnvironmentPinnedFilterField string
+
+const (
+	EnvironmentPinnedFilterField_ALL  EnvironmentPinnedFilterField = "ALL"
+	EnvironmentPinnedFilterField_NONE EnvironmentPinnedFilterField = "NONE"
+	EnvironmentPinnedFilterField_ONLY EnvironmentPinnedFilterField = "ONLY"
+)
+
 type FileViewedState string
 
 const (
@@ -395,6 +440,7 @@ const (
 type FundingPlatform string
 
 const (
+	FundingPlatform_BUY_ME_A_COFFEE  FundingPlatform = "BUY_ME_A_COFFEE"
 	FundingPlatform_COMMUNITY_BRIDGE FundingPlatform = "COMMUNITY_BRIDGE"
 	FundingPlatform_CUSTOM           FundingPlatform = "CUSTOM"
 	FundingPlatform_GITHUB           FundingPlatform = "GITHUB"
@@ -403,8 +449,9 @@ const (
 	FundingPlatform_LFX_CROWDFUNDING FundingPlatform = "LFX_CROWDFUNDING"
 	FundingPlatform_LIBERAPAY        FundingPlatform = "LIBERAPAY"
 	FundingPlatform_OPEN_COLLECTIVE  FundingPlatform = "OPEN_COLLECTIVE"
-	FundingPlatform_OTECHIE          FundingPlatform = "OTECHIE"
 	FundingPlatform_PATREON          FundingPlatform = "PATREON"
+	FundingPlatform_POLAR            FundingPlatform = "POLAR"
+	FundingPlatform_THANKS_DEV       FundingPlatform = "THANKS_DEV"
 	FundingPlatform_TIDELIFT         FundingPlatform = "TIDELIFT"
 )
 
@@ -479,6 +526,7 @@ type IssueClosedStateReason string
 
 const (
 	IssueClosedStateReason_COMPLETED   IssueClosedStateReason = "COMPLETED"
+	IssueClosedStateReason_DUPLICATE   IssueClosedStateReason = "DUPLICATE"
 	IssueClosedStateReason_NOT_PLANNED IssueClosedStateReason = "NOT_PLANNED"
 )
 
@@ -486,6 +534,13 @@ type IssueCommentOrderField string
 
 const (
 	IssueCommentOrderField_UPDATED_AT IssueCommentOrderField = "UPDATED_AT"
+)
+
+type IssueDependencyOrderField string
+
+const (
+	IssueDependencyOrderField_CREATED_AT          IssueDependencyOrderField = "CREATED_AT"
+	IssueDependencyOrderField_DEPENDENCY_ADDED_AT IssueDependencyOrderField = "DEPENDENCY_ADDED_AT"
 )
 
 type IssueOrderField string
@@ -507,6 +562,7 @@ type IssueStateReason string
 
 const (
 	IssueStateReason_COMPLETED   IssueStateReason = "COMPLETED"
+	IssueStateReason_DUPLICATE   IssueStateReason = "DUPLICATE"
 	IssueStateReason_NOT_PLANNED IssueStateReason = "NOT_PLANNED"
 	IssueStateReason_REOPENED    IssueStateReason = "REOPENED"
 )
@@ -516,6 +572,10 @@ type IssueTimelineItemsItemType string
 const (
 	IssueTimelineItemsItemType_ADDED_TO_PROJECT_EVENT         IssueTimelineItemsItemType = "ADDED_TO_PROJECT_EVENT"
 	IssueTimelineItemsItemType_ASSIGNED_EVENT                 IssueTimelineItemsItemType = "ASSIGNED_EVENT"
+	IssueTimelineItemsItemType_BLOCKED_BY_ADDED_EVENT         IssueTimelineItemsItemType = "BLOCKED_BY_ADDED_EVENT"
+	IssueTimelineItemsItemType_BLOCKED_BY_REMOVED_EVENT       IssueTimelineItemsItemType = "BLOCKED_BY_REMOVED_EVENT"
+	IssueTimelineItemsItemType_BLOCKING_ADDED_EVENT           IssueTimelineItemsItemType = "BLOCKING_ADDED_EVENT"
+	IssueTimelineItemsItemType_BLOCKING_REMOVED_EVENT         IssueTimelineItemsItemType = "BLOCKING_REMOVED_EVENT"
 	IssueTimelineItemsItemType_CLOSED_EVENT                   IssueTimelineItemsItemType = "CLOSED_EVENT"
 	IssueTimelineItemsItemType_COMMENT_DELETED_EVENT          IssueTimelineItemsItemType = "COMMENT_DELETED_EVENT"
 	IssueTimelineItemsItemType_CONNECTED_EVENT                IssueTimelineItemsItemType = "CONNECTED_EVENT"
@@ -525,18 +585,25 @@ const (
 	IssueTimelineItemsItemType_DEMILESTONED_EVENT             IssueTimelineItemsItemType = "DEMILESTONED_EVENT"
 	IssueTimelineItemsItemType_DISCONNECTED_EVENT             IssueTimelineItemsItemType = "DISCONNECTED_EVENT"
 	IssueTimelineItemsItemType_ISSUE_COMMENT                  IssueTimelineItemsItemType = "ISSUE_COMMENT"
+	IssueTimelineItemsItemType_ISSUE_TYPE_ADDED_EVENT         IssueTimelineItemsItemType = "ISSUE_TYPE_ADDED_EVENT"
+	IssueTimelineItemsItemType_ISSUE_TYPE_CHANGED_EVENT       IssueTimelineItemsItemType = "ISSUE_TYPE_CHANGED_EVENT"
+	IssueTimelineItemsItemType_ISSUE_TYPE_REMOVED_EVENT       IssueTimelineItemsItemType = "ISSUE_TYPE_REMOVED_EVENT"
 	IssueTimelineItemsItemType_LABELED_EVENT                  IssueTimelineItemsItemType = "LABELED_EVENT"
 	IssueTimelineItemsItemType_LOCKED_EVENT                   IssueTimelineItemsItemType = "LOCKED_EVENT"
 	IssueTimelineItemsItemType_MARKED_AS_DUPLICATE_EVENT      IssueTimelineItemsItemType = "MARKED_AS_DUPLICATE_EVENT"
 	IssueTimelineItemsItemType_MENTIONED_EVENT                IssueTimelineItemsItemType = "MENTIONED_EVENT"
 	IssueTimelineItemsItemType_MILESTONED_EVENT               IssueTimelineItemsItemType = "MILESTONED_EVENT"
 	IssueTimelineItemsItemType_MOVED_COLUMNS_IN_PROJECT_EVENT IssueTimelineItemsItemType = "MOVED_COLUMNS_IN_PROJECT_EVENT"
+	IssueTimelineItemsItemType_PARENT_ISSUE_ADDED_EVENT       IssueTimelineItemsItemType = "PARENT_ISSUE_ADDED_EVENT"
+	IssueTimelineItemsItemType_PARENT_ISSUE_REMOVED_EVENT     IssueTimelineItemsItemType = "PARENT_ISSUE_REMOVED_EVENT"
 	IssueTimelineItemsItemType_PINNED_EVENT                   IssueTimelineItemsItemType = "PINNED_EVENT"
 	IssueTimelineItemsItemType_REFERENCED_EVENT               IssueTimelineItemsItemType = "REFERENCED_EVENT"
 	IssueTimelineItemsItemType_REMOVED_FROM_PROJECT_EVENT     IssueTimelineItemsItemType = "REMOVED_FROM_PROJECT_EVENT"
 	IssueTimelineItemsItemType_RENAMED_TITLE_EVENT            IssueTimelineItemsItemType = "RENAMED_TITLE_EVENT"
 	IssueTimelineItemsItemType_REOPENED_EVENT                 IssueTimelineItemsItemType = "REOPENED_EVENT"
 	IssueTimelineItemsItemType_SUBSCRIBED_EVENT               IssueTimelineItemsItemType = "SUBSCRIBED_EVENT"
+	IssueTimelineItemsItemType_SUB_ISSUE_ADDED_EVENT          IssueTimelineItemsItemType = "SUB_ISSUE_ADDED_EVENT"
+	IssueTimelineItemsItemType_SUB_ISSUE_REMOVED_EVENT        IssueTimelineItemsItemType = "SUB_ISSUE_REMOVED_EVENT"
 	IssueTimelineItemsItemType_TRANSFERRED_EVENT              IssueTimelineItemsItemType = "TRANSFERRED_EVENT"
 	IssueTimelineItemsItemType_UNASSIGNED_EVENT               IssueTimelineItemsItemType = "UNASSIGNED_EVENT"
 	IssueTimelineItemsItemType_UNLABELED_EVENT                IssueTimelineItemsItemType = "UNLABELED_EVENT"
@@ -547,11 +614,32 @@ const (
 	IssueTimelineItemsItemType_USER_BLOCKED_EVENT             IssueTimelineItemsItemType = "USER_BLOCKED_EVENT"
 )
 
+type IssueTypeColor string
+
+const (
+	IssueTypeColor_BLUE   IssueTypeColor = "BLUE"
+	IssueTypeColor_GRAY   IssueTypeColor = "GRAY"
+	IssueTypeColor_GREEN  IssueTypeColor = "GREEN"
+	IssueTypeColor_ORANGE IssueTypeColor = "ORANGE"
+	IssueTypeColor_PINK   IssueTypeColor = "PINK"
+	IssueTypeColor_PURPLE IssueTypeColor = "PURPLE"
+	IssueTypeColor_RED    IssueTypeColor = "RED"
+	IssueTypeColor_YELLOW IssueTypeColor = "YELLOW"
+)
+
+type IssueTypeOrderField string
+
+const (
+	IssueTypeOrderField_CREATED_AT IssueTypeOrderField = "CREATED_AT"
+	IssueTypeOrderField_NAME       IssueTypeOrderField = "NAME"
+)
+
 type LabelOrderField string
 
 const (
-	LabelOrderField_CREATED_AT LabelOrderField = "CREATED_AT"
-	LabelOrderField_NAME       LabelOrderField = "NAME"
+	LabelOrderField_CREATED_AT  LabelOrderField = "CREATED_AT"
+	LabelOrderField_ISSUE_COUNT LabelOrderField = "ISSUE_COUNT"
+	LabelOrderField_NAME        LabelOrderField = "NAME"
 )
 
 type LanguageOrderField string
@@ -599,6 +687,21 @@ const (
 	MergeQueueEntryState_MERGEABLE       MergeQueueEntryState = "MERGEABLE"
 	MergeQueueEntryState_QUEUED          MergeQueueEntryState = "QUEUED"
 	MergeQueueEntryState_UNMERGEABLE     MergeQueueEntryState = "UNMERGEABLE"
+)
+
+type MergeQueueGroupingStrategy string
+
+const (
+	MergeQueueGroupingStrategy_ALLGREEN  MergeQueueGroupingStrategy = "ALLGREEN"
+	MergeQueueGroupingStrategy_HEADGREEN MergeQueueGroupingStrategy = "HEADGREEN"
+)
+
+type MergeQueueMergeMethod string
+
+const (
+	MergeQueueMergeMethod_MERGE  MergeQueueMergeMethod = "MERGE"
+	MergeQueueMergeMethod_REBASE MergeQueueMergeMethod = "REBASE"
+	MergeQueueMergeMethod_SQUASH MergeQueueMergeMethod = "SQUASH"
 )
 
 type MergeQueueMergingStrategy string
@@ -837,8 +940,10 @@ type OrganizationMigrationState string
 
 const (
 	OrganizationMigrationState_FAILED              OrganizationMigrationState = "FAILED"
+	OrganizationMigrationState_FAILED_VALIDATION   OrganizationMigrationState = "FAILED_VALIDATION"
 	OrganizationMigrationState_IN_PROGRESS         OrganizationMigrationState = "IN_PROGRESS"
 	OrganizationMigrationState_NOT_STARTED         OrganizationMigrationState = "NOT_STARTED"
+	OrganizationMigrationState_PENDING_VALIDATION  OrganizationMigrationState = "PENDING_VALIDATION"
 	OrganizationMigrationState_POST_REPO_MIGRATION OrganizationMigrationState = "POST_REPO_MIGRATION"
 	OrganizationMigrationState_PRE_REPO_MIGRATION  OrganizationMigrationState = "PRE_REPO_MIGRATION"
 	OrganizationMigrationState_QUEUED              OrganizationMigrationState = "QUEUED"
@@ -928,6 +1033,12 @@ const (
 	PinnedDiscussionPattern_ZAP        PinnedDiscussionPattern = "ZAP"
 )
 
+type PinnedEnvironmentOrderField string
+
+const (
+	PinnedEnvironmentOrderField_POSITION PinnedEnvironmentOrderField = "POSITION"
+)
+
 type ProjectCardArchivedState string
 
 const (
@@ -979,6 +1090,7 @@ type ProjectV2CustomFieldType string
 
 const (
 	ProjectV2CustomFieldType_DATE          ProjectV2CustomFieldType = "DATE"
+	ProjectV2CustomFieldType_ITERATION     ProjectV2CustomFieldType = "ITERATION"
 	ProjectV2CustomFieldType_NUMBER        ProjectV2CustomFieldType = "NUMBER"
 	ProjectV2CustomFieldType_SINGLE_SELECT ProjectV2CustomFieldType = "SINGLE_SELECT"
 	ProjectV2CustomFieldType_TEXT          ProjectV2CustomFieldType = "TEXT"
@@ -997,14 +1109,17 @@ type ProjectV2FieldType string
 const (
 	ProjectV2FieldType_ASSIGNEES            ProjectV2FieldType = "ASSIGNEES"
 	ProjectV2FieldType_DATE                 ProjectV2FieldType = "DATE"
+	ProjectV2FieldType_ISSUE_TYPE           ProjectV2FieldType = "ISSUE_TYPE"
 	ProjectV2FieldType_ITERATION            ProjectV2FieldType = "ITERATION"
 	ProjectV2FieldType_LABELS               ProjectV2FieldType = "LABELS"
 	ProjectV2FieldType_LINKED_PULL_REQUESTS ProjectV2FieldType = "LINKED_PULL_REQUESTS"
 	ProjectV2FieldType_MILESTONE            ProjectV2FieldType = "MILESTONE"
 	ProjectV2FieldType_NUMBER               ProjectV2FieldType = "NUMBER"
+	ProjectV2FieldType_PARENT_ISSUE         ProjectV2FieldType = "PARENT_ISSUE"
 	ProjectV2FieldType_REPOSITORY           ProjectV2FieldType = "REPOSITORY"
 	ProjectV2FieldType_REVIEWERS            ProjectV2FieldType = "REVIEWERS"
 	ProjectV2FieldType_SINGLE_SELECT        ProjectV2FieldType = "SINGLE_SELECT"
+	ProjectV2FieldType_SUB_ISSUES_PROGRESS  ProjectV2FieldType = "SUB_ISSUES_PROGRESS"
 	ProjectV2FieldType_TEXT                 ProjectV2FieldType = "TEXT"
 	ProjectV2FieldType_TITLE                ProjectV2FieldType = "TITLE"
 	ProjectV2FieldType_TRACKED_BY           ProjectV2FieldType = "TRACKED_BY"
@@ -1041,6 +1156,23 @@ const (
 	ProjectV2OrderField_UPDATED_AT ProjectV2OrderField = "UPDATED_AT"
 )
 
+type ProjectV2PermissionLevel string
+
+const (
+	ProjectV2PermissionLevel_ADMIN ProjectV2PermissionLevel = "ADMIN"
+	ProjectV2PermissionLevel_READ  ProjectV2PermissionLevel = "READ"
+	ProjectV2PermissionLevel_WRITE ProjectV2PermissionLevel = "WRITE"
+)
+
+type ProjectV2Roles string
+
+const (
+	ProjectV2Roles_ADMIN  ProjectV2Roles = "ADMIN"
+	ProjectV2Roles_NONE   ProjectV2Roles = "NONE"
+	ProjectV2Roles_READER ProjectV2Roles = "READER"
+	ProjectV2Roles_WRITER ProjectV2Roles = "WRITER"
+)
+
 type ProjectV2SingleSelectFieldOptionColor string
 
 const (
@@ -1059,6 +1191,22 @@ type ProjectV2State string
 const (
 	ProjectV2State_CLOSED ProjectV2State = "CLOSED"
 	ProjectV2State_OPEN   ProjectV2State = "OPEN"
+)
+
+type ProjectV2StatusUpdateOrderField string
+
+const (
+	ProjectV2StatusUpdateOrderField_CREATED_AT ProjectV2StatusUpdateOrderField = "CREATED_AT"
+)
+
+type ProjectV2StatusUpdateStatus string
+
+const (
+	ProjectV2StatusUpdateStatus_AT_RISK   ProjectV2StatusUpdateStatus = "AT_RISK"
+	ProjectV2StatusUpdateStatus_COMPLETE  ProjectV2StatusUpdateStatus = "COMPLETE"
+	ProjectV2StatusUpdateStatus_INACTIVE  ProjectV2StatusUpdateStatus = "INACTIVE"
+	ProjectV2StatusUpdateStatus_OFF_TRACK ProjectV2StatusUpdateStatus = "OFF_TRACK"
+	ProjectV2StatusUpdateStatus_ON_TRACK  ProjectV2StatusUpdateStatus = "ON_TRACK"
 )
 
 type ProjectV2ViewLayout string
@@ -1084,6 +1232,21 @@ const (
 	ProjectV2WorkflowsOrderField_NAME       ProjectV2WorkflowsOrderField = "NAME"
 	ProjectV2WorkflowsOrderField_NUMBER     ProjectV2WorkflowsOrderField = "NUMBER"
 	ProjectV2WorkflowsOrderField_UPDATED_AT ProjectV2WorkflowsOrderField = "UPDATED_AT"
+)
+
+type PullRequestAllowedMergeMethods string
+
+const (
+	PullRequestAllowedMergeMethods_MERGE  PullRequestAllowedMergeMethods = "MERGE"
+	PullRequestAllowedMergeMethods_REBASE PullRequestAllowedMergeMethods = "REBASE"
+	PullRequestAllowedMergeMethods_SQUASH PullRequestAllowedMergeMethods = "SQUASH"
+)
+
+type PullRequestBranchUpdateMethod string
+
+const (
+	PullRequestBranchUpdateMethod_MERGE  PullRequestBranchUpdateMethod = "MERGE"
+	PullRequestBranchUpdateMethod_REBASE PullRequestBranchUpdateMethod = "REBASE"
 )
 
 type PullRequestMergeMethod string
@@ -1157,6 +1320,10 @@ const (
 	PullRequestTimelineItemsItemType_BASE_REF_CHANGED_EVENT                PullRequestTimelineItemsItemType = "BASE_REF_CHANGED_EVENT"
 	PullRequestTimelineItemsItemType_BASE_REF_DELETED_EVENT                PullRequestTimelineItemsItemType = "BASE_REF_DELETED_EVENT"
 	PullRequestTimelineItemsItemType_BASE_REF_FORCE_PUSHED_EVENT           PullRequestTimelineItemsItemType = "BASE_REF_FORCE_PUSHED_EVENT"
+	PullRequestTimelineItemsItemType_BLOCKED_BY_ADDED_EVENT                PullRequestTimelineItemsItemType = "BLOCKED_BY_ADDED_EVENT"
+	PullRequestTimelineItemsItemType_BLOCKED_BY_REMOVED_EVENT              PullRequestTimelineItemsItemType = "BLOCKED_BY_REMOVED_EVENT"
+	PullRequestTimelineItemsItemType_BLOCKING_ADDED_EVENT                  PullRequestTimelineItemsItemType = "BLOCKING_ADDED_EVENT"
+	PullRequestTimelineItemsItemType_BLOCKING_REMOVED_EVENT                PullRequestTimelineItemsItemType = "BLOCKING_REMOVED_EVENT"
 	PullRequestTimelineItemsItemType_CLOSED_EVENT                          PullRequestTimelineItemsItemType = "CLOSED_EVENT"
 	PullRequestTimelineItemsItemType_COMMENT_DELETED_EVENT                 PullRequestTimelineItemsItemType = "COMMENT_DELETED_EVENT"
 	PullRequestTimelineItemsItemType_CONNECTED_EVENT                       PullRequestTimelineItemsItemType = "CONNECTED_EVENT"
@@ -1172,6 +1339,9 @@ const (
 	PullRequestTimelineItemsItemType_HEAD_REF_FORCE_PUSHED_EVENT           PullRequestTimelineItemsItemType = "HEAD_REF_FORCE_PUSHED_EVENT"
 	PullRequestTimelineItemsItemType_HEAD_REF_RESTORED_EVENT               PullRequestTimelineItemsItemType = "HEAD_REF_RESTORED_EVENT"
 	PullRequestTimelineItemsItemType_ISSUE_COMMENT                         PullRequestTimelineItemsItemType = "ISSUE_COMMENT"
+	PullRequestTimelineItemsItemType_ISSUE_TYPE_ADDED_EVENT                PullRequestTimelineItemsItemType = "ISSUE_TYPE_ADDED_EVENT"
+	PullRequestTimelineItemsItemType_ISSUE_TYPE_CHANGED_EVENT              PullRequestTimelineItemsItemType = "ISSUE_TYPE_CHANGED_EVENT"
+	PullRequestTimelineItemsItemType_ISSUE_TYPE_REMOVED_EVENT              PullRequestTimelineItemsItemType = "ISSUE_TYPE_REMOVED_EVENT"
 	PullRequestTimelineItemsItemType_LABELED_EVENT                         PullRequestTimelineItemsItemType = "LABELED_EVENT"
 	PullRequestTimelineItemsItemType_LOCKED_EVENT                          PullRequestTimelineItemsItemType = "LOCKED_EVENT"
 	PullRequestTimelineItemsItemType_MARKED_AS_DUPLICATE_EVENT             PullRequestTimelineItemsItemType = "MARKED_AS_DUPLICATE_EVENT"
@@ -1179,6 +1349,8 @@ const (
 	PullRequestTimelineItemsItemType_MERGED_EVENT                          PullRequestTimelineItemsItemType = "MERGED_EVENT"
 	PullRequestTimelineItemsItemType_MILESTONED_EVENT                      PullRequestTimelineItemsItemType = "MILESTONED_EVENT"
 	PullRequestTimelineItemsItemType_MOVED_COLUMNS_IN_PROJECT_EVENT        PullRequestTimelineItemsItemType = "MOVED_COLUMNS_IN_PROJECT_EVENT"
+	PullRequestTimelineItemsItemType_PARENT_ISSUE_ADDED_EVENT              PullRequestTimelineItemsItemType = "PARENT_ISSUE_ADDED_EVENT"
+	PullRequestTimelineItemsItemType_PARENT_ISSUE_REMOVED_EVENT            PullRequestTimelineItemsItemType = "PARENT_ISSUE_REMOVED_EVENT"
 	PullRequestTimelineItemsItemType_PINNED_EVENT                          PullRequestTimelineItemsItemType = "PINNED_EVENT"
 	PullRequestTimelineItemsItemType_PULL_REQUEST_COMMIT                   PullRequestTimelineItemsItemType = "PULL_REQUEST_COMMIT"
 	PullRequestTimelineItemsItemType_PULL_REQUEST_COMMIT_COMMENT_THREAD    PullRequestTimelineItemsItemType = "PULL_REQUEST_COMMIT_COMMENT_THREAD"
@@ -1195,6 +1367,8 @@ const (
 	PullRequestTimelineItemsItemType_REVIEW_REQUESTED_EVENT                PullRequestTimelineItemsItemType = "REVIEW_REQUESTED_EVENT"
 	PullRequestTimelineItemsItemType_REVIEW_REQUEST_REMOVED_EVENT          PullRequestTimelineItemsItemType = "REVIEW_REQUEST_REMOVED_EVENT"
 	PullRequestTimelineItemsItemType_SUBSCRIBED_EVENT                      PullRequestTimelineItemsItemType = "SUBSCRIBED_EVENT"
+	PullRequestTimelineItemsItemType_SUB_ISSUE_ADDED_EVENT                 PullRequestTimelineItemsItemType = "SUB_ISSUE_ADDED_EVENT"
+	PullRequestTimelineItemsItemType_SUB_ISSUE_REMOVED_EVENT               PullRequestTimelineItemsItemType = "SUB_ISSUE_REMOVED_EVENT"
 	PullRequestTimelineItemsItemType_TRANSFERRED_EVENT                     PullRequestTimelineItemsItemType = "TRANSFERRED_EVENT"
 	PullRequestTimelineItemsItemType_UNASSIGNED_EVENT                      PullRequestTimelineItemsItemType = "UNASSIGNED_EVENT"
 	PullRequestTimelineItemsItemType_UNLABELED_EVENT                       PullRequestTimelineItemsItemType = "UNLABELED_EVENT"
@@ -1366,11 +1540,12 @@ const (
 type RepositoryLockReason string
 
 const (
-	RepositoryLockReason_BILLING           RepositoryLockReason = "BILLING"
-	RepositoryLockReason_MIGRATING         RepositoryLockReason = "MIGRATING"
-	RepositoryLockReason_MOVING            RepositoryLockReason = "MOVING"
-	RepositoryLockReason_RENAME            RepositoryLockReason = "RENAME"
-	RepositoryLockReason_TRADE_RESTRICTION RepositoryLockReason = "TRADE_RESTRICTION"
+	RepositoryLockReason_BILLING                RepositoryLockReason = "BILLING"
+	RepositoryLockReason_MIGRATING              RepositoryLockReason = "MIGRATING"
+	RepositoryLockReason_MOVING                 RepositoryLockReason = "MOVING"
+	RepositoryLockReason_RENAME                 RepositoryLockReason = "RENAME"
+	RepositoryLockReason_TRADE_RESTRICTION      RepositoryLockReason = "TRADE_RESTRICTION"
+	RepositoryLockReason_TRANSFERRING_OWNERSHIP RepositoryLockReason = "TRANSFERRING_OWNERSHIP"
 )
 
 type RepositoryMigrationOrderDirection string
@@ -1413,30 +1588,70 @@ const (
 	RepositoryPrivacy_PUBLIC  RepositoryPrivacy = "PUBLIC"
 )
 
+type RepositoryRuleOrderField string
+
+const (
+	RepositoryRuleOrderField_CREATED_AT RepositoryRuleOrderField = "CREATED_AT"
+	RepositoryRuleOrderField_TYPE       RepositoryRuleOrderField = "TYPE"
+	RepositoryRuleOrderField_UPDATED_AT RepositoryRuleOrderField = "UPDATED_AT"
+)
+
 type RepositoryRuleType string
 
 const (
-	RepositoryRuleType_BRANCH_NAME_PATTERN         RepositoryRuleType = "BRANCH_NAME_PATTERN"
-	RepositoryRuleType_COMMITTER_EMAIL_PATTERN     RepositoryRuleType = "COMMITTER_EMAIL_PATTERN"
-	RepositoryRuleType_COMMIT_AUTHOR_EMAIL_PATTERN RepositoryRuleType = "COMMIT_AUTHOR_EMAIL_PATTERN"
-	RepositoryRuleType_COMMIT_MESSAGE_PATTERN      RepositoryRuleType = "COMMIT_MESSAGE_PATTERN"
-	RepositoryRuleType_CREATION                    RepositoryRuleType = "CREATION"
-	RepositoryRuleType_DELETION                    RepositoryRuleType = "DELETION"
-	RepositoryRuleType_NON_FAST_FORWARD            RepositoryRuleType = "NON_FAST_FORWARD"
-	RepositoryRuleType_PULL_REQUEST                RepositoryRuleType = "PULL_REQUEST"
-	RepositoryRuleType_REQUIRED_DEPLOYMENTS        RepositoryRuleType = "REQUIRED_DEPLOYMENTS"
-	RepositoryRuleType_REQUIRED_LINEAR_HISTORY     RepositoryRuleType = "REQUIRED_LINEAR_HISTORY"
-	RepositoryRuleType_REQUIRED_SIGNATURES         RepositoryRuleType = "REQUIRED_SIGNATURES"
-	RepositoryRuleType_REQUIRED_STATUS_CHECKS      RepositoryRuleType = "REQUIRED_STATUS_CHECKS"
-	RepositoryRuleType_TAG_NAME_PATTERN            RepositoryRuleType = "TAG_NAME_PATTERN"
-	RepositoryRuleType_UPDATE                      RepositoryRuleType = "UPDATE"
+	RepositoryRuleType_AUTHORIZATION                     RepositoryRuleType = "AUTHORIZATION"
+	RepositoryRuleType_BRANCH_NAME_PATTERN               RepositoryRuleType = "BRANCH_NAME_PATTERN"
+	RepositoryRuleType_CODE_SCANNING                     RepositoryRuleType = "CODE_SCANNING"
+	RepositoryRuleType_COMMITTER_EMAIL_PATTERN           RepositoryRuleType = "COMMITTER_EMAIL_PATTERN"
+	RepositoryRuleType_COMMIT_AUTHOR_EMAIL_PATTERN       RepositoryRuleType = "COMMIT_AUTHOR_EMAIL_PATTERN"
+	RepositoryRuleType_COMMIT_MESSAGE_PATTERN            RepositoryRuleType = "COMMIT_MESSAGE_PATTERN"
+	RepositoryRuleType_CREATION                          RepositoryRuleType = "CREATION"
+	RepositoryRuleType_DELETION                          RepositoryRuleType = "DELETION"
+	RepositoryRuleType_FILE_EXTENSION_RESTRICTION        RepositoryRuleType = "FILE_EXTENSION_RESTRICTION"
+	RepositoryRuleType_FILE_PATH_RESTRICTION             RepositoryRuleType = "FILE_PATH_RESTRICTION"
+	RepositoryRuleType_LOCK_BRANCH                       RepositoryRuleType = "LOCK_BRANCH"
+	RepositoryRuleType_MAX_FILE_PATH_LENGTH              RepositoryRuleType = "MAX_FILE_PATH_LENGTH"
+	RepositoryRuleType_MAX_FILE_SIZE                     RepositoryRuleType = "MAX_FILE_SIZE"
+	RepositoryRuleType_MAX_REF_UPDATES                   RepositoryRuleType = "MAX_REF_UPDATES"
+	RepositoryRuleType_MERGE_QUEUE                       RepositoryRuleType = "MERGE_QUEUE"
+	RepositoryRuleType_MERGE_QUEUE_LOCKED_REF            RepositoryRuleType = "MERGE_QUEUE_LOCKED_REF"
+	RepositoryRuleType_NON_FAST_FORWARD                  RepositoryRuleType = "NON_FAST_FORWARD"
+	RepositoryRuleType_PULL_REQUEST                      RepositoryRuleType = "PULL_REQUEST"
+	RepositoryRuleType_REQUIRED_DEPLOYMENTS              RepositoryRuleType = "REQUIRED_DEPLOYMENTS"
+	RepositoryRuleType_REQUIRED_LINEAR_HISTORY           RepositoryRuleType = "REQUIRED_LINEAR_HISTORY"
+	RepositoryRuleType_REQUIRED_REVIEW_THREAD_RESOLUTION RepositoryRuleType = "REQUIRED_REVIEW_THREAD_RESOLUTION"
+	RepositoryRuleType_REQUIRED_SIGNATURES               RepositoryRuleType = "REQUIRED_SIGNATURES"
+	RepositoryRuleType_REQUIRED_STATUS_CHECKS            RepositoryRuleType = "REQUIRED_STATUS_CHECKS"
+	RepositoryRuleType_REQUIRED_WORKFLOW_STATUS_CHECKS   RepositoryRuleType = "REQUIRED_WORKFLOW_STATUS_CHECKS"
+	RepositoryRuleType_SECRET_SCANNING                   RepositoryRuleType = "SECRET_SCANNING"
+	RepositoryRuleType_TAG                               RepositoryRuleType = "TAG"
+	RepositoryRuleType_TAG_NAME_PATTERN                  RepositoryRuleType = "TAG_NAME_PATTERN"
+	RepositoryRuleType_UPDATE                            RepositoryRuleType = "UPDATE"
+	RepositoryRuleType_WORKFLOWS                         RepositoryRuleType = "WORKFLOWS"
+	RepositoryRuleType_WORKFLOW_UPDATES                  RepositoryRuleType = "WORKFLOW_UPDATES"
+)
+
+type RepositoryRulesetBypassActorBypassMode string
+
+const (
+	RepositoryRulesetBypassActorBypassMode_ALWAYS       RepositoryRulesetBypassActorBypassMode = "ALWAYS"
+	RepositoryRulesetBypassActorBypassMode_PULL_REQUEST RepositoryRulesetBypassActorBypassMode = "PULL_REQUEST"
 )
 
 type RepositoryRulesetTarget string
 
 const (
-	RepositoryRulesetTarget_BRANCH RepositoryRulesetTarget = "BRANCH"
-	RepositoryRulesetTarget_TAG    RepositoryRulesetTarget = "TAG"
+	RepositoryRulesetTarget_BRANCH     RepositoryRulesetTarget = "BRANCH"
+	RepositoryRulesetTarget_PUSH       RepositoryRulesetTarget = "PUSH"
+	RepositoryRulesetTarget_REPOSITORY RepositoryRulesetTarget = "REPOSITORY"
+	RepositoryRulesetTarget_TAG        RepositoryRulesetTarget = "TAG"
+)
+
+type RepositorySuggestedActorFilter string
+
+const (
+	RepositorySuggestedActorFilter_CAN_BE_ASSIGNED RepositorySuggestedActorFilter = "CAN_BE_ASSIGNED"
+	RepositorySuggestedActorFilter_CAN_BE_AUTHOR   RepositorySuggestedActorFilter = "CAN_BE_AUTHOR"
 )
 
 type RepositoryVisibility string
@@ -1445,6 +1660,14 @@ const (
 	RepositoryVisibility_INTERNAL RepositoryVisibility = "INTERNAL"
 	RepositoryVisibility_PRIVATE  RepositoryVisibility = "PRIVATE"
 	RepositoryVisibility_PUBLIC   RepositoryVisibility = "PUBLIC"
+)
+
+type RepositoryVulnerabilityAlertDependencyRelationship string
+
+const (
+	RepositoryVulnerabilityAlertDependencyRelationship_DIRECT     RepositoryVulnerabilityAlertDependencyRelationship = "DIRECT"
+	RepositoryVulnerabilityAlertDependencyRelationship_TRANSITIVE RepositoryVulnerabilityAlertDependencyRelationship = "TRANSITIVE"
+	RepositoryVulnerabilityAlertDependencyRelationship_UNKNOWN    RepositoryVulnerabilityAlertDependencyRelationship = "UNKNOWN"
 )
 
 type RepositoryVulnerabilityAlertDependencyScope string
@@ -1479,14 +1702,6 @@ const (
 	RoleInOrganization_DIRECT_MEMBER RoleInOrganization = "DIRECT_MEMBER"
 	RoleInOrganization_OWNER         RoleInOrganization = "OWNER"
 	RoleInOrganization_UNAFFILIATED  RoleInOrganization = "UNAFFILIATED"
-)
-
-type RuleBypassMode string
-
-const (
-	RuleBypassMode_NONE         RuleBypassMode = "NONE"
-	RuleBypassMode_ORGANIZATION RuleBypassMode = "ORGANIZATION"
-	RuleBypassMode_REPOSITORY   RuleBypassMode = "REPOSITORY"
 )
 
 type RuleEnforcement string
@@ -1524,10 +1739,11 @@ const (
 type SearchType string
 
 const (
-	SearchType_DISCUSSION SearchType = "DISCUSSION"
-	SearchType_ISSUE      SearchType = "ISSUE"
-	SearchType_REPOSITORY SearchType = "REPOSITORY"
-	SearchType_USER       SearchType = "USER"
+	SearchType_DISCUSSION     SearchType = "DISCUSSION"
+	SearchType_ISSUE          SearchType = "ISSUE"
+	SearchType_ISSUE_ADVANCED SearchType = "ISSUE_ADVANCED"
+	SearchType_REPOSITORY     SearchType = "REPOSITORY"
+	SearchType_USER           SearchType = "USER"
 )
 
 type SecurityAdvisoryClassification string
@@ -1551,6 +1767,7 @@ const (
 	SecurityAdvisoryEcosystem_PUB      SecurityAdvisoryEcosystem = "PUB"
 	SecurityAdvisoryEcosystem_RUBYGEMS SecurityAdvisoryEcosystem = "RUBYGEMS"
 	SecurityAdvisoryEcosystem_RUST     SecurityAdvisoryEcosystem = "RUST"
+	SecurityAdvisoryEcosystem_SWIFT    SecurityAdvisoryEcosystem = "SWIFT"
 )
 
 type SecurityAdvisoryIdentifierType string
@@ -1563,8 +1780,10 @@ const (
 type SecurityAdvisoryOrderField string
 
 const (
-	SecurityAdvisoryOrderField_PUBLISHED_AT SecurityAdvisoryOrderField = "PUBLISHED_AT"
-	SecurityAdvisoryOrderField_UPDATED_AT   SecurityAdvisoryOrderField = "UPDATED_AT"
+	SecurityAdvisoryOrderField_EPSS_PERCENTAGE SecurityAdvisoryOrderField = "EPSS_PERCENTAGE"
+	SecurityAdvisoryOrderField_EPSS_PERCENTILE SecurityAdvisoryOrderField = "EPSS_PERCENTILE"
+	SecurityAdvisoryOrderField_PUBLISHED_AT    SecurityAdvisoryOrderField = "PUBLISHED_AT"
+	SecurityAdvisoryOrderField_UPDATED_AT      SecurityAdvisoryOrderField = "UPDATED_AT"
 )
 
 type SecurityAdvisorySeverity string
@@ -1585,16 +1804,26 @@ const (
 type SocialAccountProvider string
 
 const (
+	SocialAccountProvider_BLUESKY   SocialAccountProvider = "BLUESKY"
 	SocialAccountProvider_FACEBOOK  SocialAccountProvider = "FACEBOOK"
 	SocialAccountProvider_GENERIC   SocialAccountProvider = "GENERIC"
 	SocialAccountProvider_HOMETOWN  SocialAccountProvider = "HOMETOWN"
 	SocialAccountProvider_INSTAGRAM SocialAccountProvider = "INSTAGRAM"
 	SocialAccountProvider_LINKEDIN  SocialAccountProvider = "LINKEDIN"
 	SocialAccountProvider_MASTODON  SocialAccountProvider = "MASTODON"
+	SocialAccountProvider_NPM       SocialAccountProvider = "NPM"
 	SocialAccountProvider_REDDIT    SocialAccountProvider = "REDDIT"
 	SocialAccountProvider_TWITCH    SocialAccountProvider = "TWITCH"
 	SocialAccountProvider_TWITTER   SocialAccountProvider = "TWITTER"
 	SocialAccountProvider_YOUTUBE   SocialAccountProvider = "YOUTUBE"
+)
+
+type SponsorAndLifetimeValueOrderField string
+
+const (
+	SponsorAndLifetimeValueOrderField_LIFETIME_VALUE    SponsorAndLifetimeValueOrderField = "LIFETIME_VALUE"
+	SponsorAndLifetimeValueOrderField_SPONSOR_LOGIN     SponsorAndLifetimeValueOrderField = "SPONSOR_LOGIN"
+	SponsorAndLifetimeValueOrderField_SPONSOR_RELEVANCE SponsorAndLifetimeValueOrderField = "SPONSOR_RELEVANCE"
 )
 
 type SponsorOrderField string
@@ -1920,6 +2149,13 @@ const (
 	SponsorshipOrderField_CREATED_AT SponsorshipOrderField = "CREATED_AT"
 )
 
+type SponsorshipPaymentSource string
+
+const (
+	SponsorshipPaymentSource_GITHUB  SponsorshipPaymentSource = "GITHUB"
+	SponsorshipPaymentSource_PATREON SponsorshipPaymentSource = "PATREON"
+)
+
 type SponsorshipPrivacy string
 
 const (
@@ -2035,6 +2271,28 @@ const (
 	TeamRole_MEMBER TeamRole = "MEMBER"
 )
 
+type ThreadSubscriptionFormAction string
+
+const (
+	ThreadSubscriptionFormAction_NONE        ThreadSubscriptionFormAction = "NONE"
+	ThreadSubscriptionFormAction_SUBSCRIBE   ThreadSubscriptionFormAction = "SUBSCRIBE"
+	ThreadSubscriptionFormAction_UNSUBSCRIBE ThreadSubscriptionFormAction = "UNSUBSCRIBE"
+)
+
+type ThreadSubscriptionState string
+
+const (
+	ThreadSubscriptionState_DISABLED                    ThreadSubscriptionState = "DISABLED"
+	ThreadSubscriptionState_IGNORING_LIST               ThreadSubscriptionState = "IGNORING_LIST"
+	ThreadSubscriptionState_IGNORING_THREAD             ThreadSubscriptionState = "IGNORING_THREAD"
+	ThreadSubscriptionState_NONE                        ThreadSubscriptionState = "NONE"
+	ThreadSubscriptionState_SUBSCRIBED_TO_LIST          ThreadSubscriptionState = "SUBSCRIBED_TO_LIST"
+	ThreadSubscriptionState_SUBSCRIBED_TO_THREAD        ThreadSubscriptionState = "SUBSCRIBED_TO_THREAD"
+	ThreadSubscriptionState_SUBSCRIBED_TO_THREAD_EVENTS ThreadSubscriptionState = "SUBSCRIBED_TO_THREAD_EVENTS"
+	ThreadSubscriptionState_SUBSCRIBED_TO_THREAD_TYPE   ThreadSubscriptionState = "SUBSCRIBED_TO_THREAD_TYPE"
+	ThreadSubscriptionState_UNAVAILABLE                 ThreadSubscriptionState = "UNAVAILABLE"
+)
+
 type TopicSuggestionDeclineReason string
 
 const (
@@ -2051,6 +2309,14 @@ const (
 	TrackedIssueStates_OPEN   TrackedIssueStates = "OPEN"
 )
 
+type TwoFactorCredentialSecurityType string
+
+const (
+	TwoFactorCredentialSecurityType_DISABLED TwoFactorCredentialSecurityType = "DISABLED"
+	TwoFactorCredentialSecurityType_INSECURE TwoFactorCredentialSecurityType = "INSECURE"
+	TwoFactorCredentialSecurityType_SECURE   TwoFactorCredentialSecurityType = "SECURE"
+)
+
 type UserBlockDuration string
 
 const (
@@ -2065,6 +2331,13 @@ type UserStatusOrderField string
 
 const (
 	UserStatusOrderField_UPDATED_AT UserStatusOrderField = "UPDATED_AT"
+)
+
+type UserViewType string
+
+const (
+	UserViewType_PRIVATE UserViewType = "PRIVATE"
+	UserViewType_PUBLIC  UserViewType = "PUBLIC"
 )
 
 type VerifiableDomainOrderField string
@@ -2176,6 +2449,7 @@ type MergePullRequestInput struct {
 }
 
 type RequestReviewsInput struct {
+	BotIds           *[]string `json:"botIds,omitempty"`
 	ClientMutationId *string   `json:"clientMutationId,omitempty"`
 	PullRequestId    string    `json:"pullRequestId"`
 	TeamIds          *[]string `json:"teamIds,omitempty"`
