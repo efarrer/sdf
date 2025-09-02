@@ -4,23 +4,36 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 
+	"github.com/Khan/genqlient/graphql"
 	"github.com/ejoffe/spr/config"
 	"github.com/ejoffe/spr/git"
 	"github.com/ejoffe/spr/github"
-	"github.com/ejoffe/spr/github/githubclient/fezzik_types"
 	"github.com/ejoffe/spr/github/githubclient/gen/genclient"
+	"github.com/ejoffe/spr/github/githubclient/genqlient"
 	gogithub "github.com/google/go-github/v69/github"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/oauth2"
 )
 
+type authedTransport struct {
+	key     string
+	wrapped http.RoundTripper
+}
+
+func (t *authedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req.Header.Set("Authorization", "bearer "+t.key)
+	return t.wrapped.RoundTrip(req)
+}
+
 //go:generate go run github.com/inigolabs/fezzik --config fezzik.yaml
+//go:generate go run github.com/Khan/genqlient  ../../genqlient.yaml
 
 const tokenHelpText = `
 No GitHub OAuth token found! You can either create one
@@ -40,7 +53,7 @@ This configuration file is shared with GitHub's "hub" CLI (https://hub.github.co
 so if you already use that, spr will automatically pick up your token.
 `
 
-func NewGitHubClient(ctx context.Context, config *config.Config) *client {
+func NewGitHubClient(ctx context.Context, git git.GitInterface, config *config.Config) *client {
 	token := github.FindToken(config.Repo.GitHubHost)
 	if token == "" {
 		fmt.Printf(tokenHelpText, config.Repo.GitHubHost)
@@ -52,7 +65,17 @@ func NewGitHubClient(ctx context.Context, config *config.Config) *client {
 	tc := oauth2.NewClient(ctx, ts)
 
 	var api genclient.Client
+	var gclient graphql.Client
 	if strings.HasSuffix(config.Repo.GitHubHost, "github.com") {
+
+		httpClient := http.Client{
+			Transport: &authedTransport{
+				key:     token,
+				wrapped: http.DefaultTransport,
+			},
+		}
+		gclient = graphql.NewClient("https://api.github.com/graphql", &httpClient)
+
 		api = genclient.NewClient("https://api.github.com/graphql", tc)
 	} else {
 		var scheme, host string
@@ -72,6 +95,8 @@ func NewGitHubClient(ctx context.Context, config *config.Config) *client {
 		config:     config,
 		api:        api,
 		goghclient: goghclient,
+		gclient:    gclient,
+		git:        git,
 	}
 }
 
@@ -79,6 +104,8 @@ type client struct {
 	config     *config.Config
 	api        genclient.Client
 	goghclient *gogithub.Client
+	gclient    graphql.Client
+	git        git.GitInterface
 }
 
 func (c *client) GetInfo(ctx context.Context, gitcmd git.GitInterface) *github.GitHubInfo {
@@ -86,26 +113,18 @@ func (c *client) GetInfo(ctx context.Context, gitcmd git.GitInterface) *github.G
 		fmt.Printf("> github fetch pull requests\n")
 	}
 
-	var pullRequestConnection fezzik_types.PullRequestConnection
+	var pullRequestConnection genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnection
 	var loginName string
 	var repoID string
-	if c.config.Repo.MergeQueue {
-		resp, err := c.api.PullRequestsWithMergeQueue(ctx,
-			c.config.Repo.GitHubRepoOwner,
-			c.config.Repo.GitHubRepoName)
-		check(err)
-		pullRequestConnection = resp.Viewer.PullRequests
-		loginName = resp.Viewer.Login
-		repoID = resp.Repository.Id
-	} else {
-		resp, err := c.api.PullRequests(ctx,
-			c.config.Repo.GitHubRepoOwner,
-			c.config.Repo.GitHubRepoName)
-		check(err)
-		pullRequestConnection = resp.Viewer.PullRequests
-		loginName = resp.Viewer.Login
-		repoID = resp.Repository.Id
-	}
+	resp, err := genqlient.PullRequestsWithMergeQueue(
+		ctx, c.gclient,
+		c.config.Repo.GitHubRepoOwner,
+		c.config.Repo.GitHubRepoName,
+	)
+	check(err)
+	pullRequestConnection = resp.Viewer.PullRequests
+	loginName = resp.Viewer.Login
+	repoID = resp.Repository.Id
 
 	targetBranch := c.config.Repo.GitHubBranch
 	localCommitStack := git.GetLocalCommitStack(c.config, gitcmd)
@@ -139,7 +158,7 @@ func matchPullRequestStack(
 	repoConfig *config.RepoConfig,
 	targetBranch string,
 	localCommitStack []git.Commit,
-	allPullRequests fezzik_types.PullRequestConnection) []*github.PullRequest {
+	allPullRequests genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnection) []*github.PullRequest {
 
 	if len(localCommitStack) == 0 || allPullRequests.Nodes == nil {
 		return []*github.PullRequest{}
@@ -147,9 +166,9 @@ func matchPullRequestStack(
 
 	// pullRequestMap is a map from commit-id to pull request
 	pullRequestMap := make(map[string]*github.PullRequest)
-	for _, node := range *allPullRequests.Nodes {
+	for _, node := range allPullRequests.Nodes {
 		var commits []git.Commit
-		for _, v := range *node.Commits.Nodes {
+		for _, v := range node.Commits.Nodes {
 			for _, line := range strings.Split(v.Commit.MessageBody, "\n") {
 				if strings.HasPrefix(line, "commit-id:") {
 					commits = append(commits, git.Commit{
@@ -163,19 +182,20 @@ func matchPullRequestStack(
 		}
 
 		pullRequest := &github.PullRequest{
-			ID:         node.Id,
+			DatabaseId: fmt.Sprintf("%d", node.DatabaseId),
+			Id:         node.Id,
 			Number:     node.Number,
 			Title:      node.Title,
 			Body:       node.Body,
 			FromBranch: node.HeadRefName,
 			ToBranch:   node.BaseRefName,
 			Commits:    commits,
-			InQueue:    node.MergeQueueEntry != nil,
+			InQueue:    node.MergeQueueEntry.Id != "",
 		}
 
 		matches := git.BranchNameRegex.FindStringSubmatch(node.HeadRefName)
 		if matches != nil {
-			commit := (*node.Commits.Nodes)[len(*node.Commits.Nodes)-1].Commit
+			commit := (node.Commits.Nodes)[len(node.Commits.Nodes)-1].Commit
 			pullRequest.Commit = git.Commit{
 				CommitID:   matches[2],
 				CommitHash: commit.Oid,
@@ -184,7 +204,7 @@ func matchPullRequestStack(
 			}
 
 			checkStatus := github.CheckStatusPass
-			if commit.StatusCheckRollup != nil {
+			if commit.StatusCheckRollup.State != "" {
 				switch commit.StatusCheckRollup.State {
 				case "SUCCESS":
 					checkStatus = github.CheckStatusPass
@@ -197,7 +217,7 @@ func matchPullRequestStack(
 
 			pullRequest.MergeStatus = github.PullRequestMergeStatus{
 				ChecksPass:     checkStatus,
-				ReviewApproved: node.ReviewDecision != nil && *node.ReviewDecision == "APPROVED",
+				ReviewApproved: node.ReviewDecision == "APPROVED",
 				NoConflicts:    node.Mergeable == "MERGEABLE",
 			}
 
@@ -254,23 +274,26 @@ func (c *client) GetAssignableUsers(ctx context.Context) []github.RepoAssignee {
 	}
 
 	users := []github.RepoAssignee{}
-	var endCursor *string
+	var endCursor string
 	for {
-		resp, err := c.api.AssignableUsers(ctx,
+		resp, err := genqlient.AssignableUsers(
+			ctx,
+			c.gclient,
 			c.config.Repo.GitHubRepoOwner,
-			c.config.Repo.GitHubRepoName, endCursor)
+			c.config.Repo.GitHubRepoName, endCursor,
+		)
 		if err != nil {
 			log.Fatal().Err(err).Msg("get assignable users failed")
 			return nil
 		}
 
-		for _, node := range *resp.Repository.AssignableUsers.Nodes {
+		for _, node := range resp.Repository.AssignableUsers.Nodes {
 			user := github.RepoAssignee{
 				ID:    node.Id,
 				Login: node.Login,
 			}
-			if node.Name != nil {
-				user.Name = *node.Name
+			if node.Name != "" {
+				user.Name = node.Name
 			}
 			users = append(users, user)
 		}
@@ -307,18 +330,18 @@ func (c *client) CreatePullRequest(ctx context.Context, gitcmd git.GitInterface,
 			log.Fatal().Err(err).Msg("failed to insert body into PR template")
 		}
 	}
-	resp, err := c.api.CreatePullRequest(ctx, genclient.CreatePullRequestInput{
+	resp, err := genqlient.CreatePullRequest(ctx, c.gclient, genqlient.CreatePullRequestInput{
 		RepositoryId: info.RepositoryID,
 		BaseRefName:  baseRefName,
 		HeadRefName:  headRefName,
 		Title:        commit.Subject,
-		Body:         &body,
-		Draft:        &c.config.User.CreateDraftPRs,
+		Body:         body,
+		Draft:        c.config.User.CreateDraftPRs,
 	})
 	check(err)
 
 	pr := &github.PullRequest{
-		ID:         resp.CreatePullRequest.PullRequest.Id,
+		DatabaseId: resp.CreatePullRequest.PullRequest.Id,
 		Number:     resp.CreatePullRequest.PullRequest.Number,
 		FromBranch: headRefName,
 		ToBranch:   baseRefName,
@@ -339,9 +362,12 @@ func (c *client) CreatePullRequest(ctx context.Context, gitcmd git.GitInterface,
 	return pr
 }
 
-func (c *client) CreatePullRequest2(ctx context.Context, owner string, repoName string, pull *gogithub.NewPullRequest) (*gogithub.PullRequest, error) {
-	resp, _, err := c.goghclient.PullRequests.Create(ctx, owner, repoName, pull)
-	return resp, err
+func (c *client) CreatePullRequest2(ctx context.Context, owner string, repoName string, pull genclient.CreatePullRequestInput) (string, int, error) {
+	resp, err := c.api.CreatePullRequest(ctx, pull)
+	if err != nil {
+		return "", 0, err
+	}
+	return resp.CreatePullRequest.PullRequest.Id, resp.CreatePullRequest.PullRequest.Number, err
 }
 
 func formatStackMarkdown(commit git.Commit, stack []*github.PullRequest, showPrTitlesInStack bool) string {
@@ -479,7 +505,7 @@ func (c *client) UpdatePullRequest(ctx context.Context, gitcmd git.GitInterface,
 	title := &commit.Subject
 
 	input := genclient.UpdatePullRequestInput{
-		PullRequestId: pr.ID,
+		PullRequestId: pr.DatabaseId,
 		Title:         title,
 		Body:          &body,
 	}
@@ -497,7 +523,8 @@ func (c *client) UpdatePullRequest(ctx context.Context, gitcmd git.GitInterface,
 
 	if err != nil {
 		log.Fatal().
-			Str("id", pr.ID).
+			Str("id", pr.Id).
+			Str("databaseId", pr.DatabaseId).
 			Int("number", pr.Number).
 			Str("title", pr.Title).
 			Err(err).
@@ -513,15 +540,18 @@ func (c *client) AddReviewers(ctx context.Context, pr *github.PullRequest, userI
 	if c.config.User.LogGitHubCalls {
 		fmt.Printf("> github add reviewers %d : %s - %+v\n", pr.Number, pr.Title, userIDs)
 	}
+
 	union := false
-	_, err := c.api.AddReviewers(ctx, genclient.RequestReviewsInput{
-		PullRequestId: pr.ID,
-		Union:         &union,
-		UserIds:       &userIDs,
+
+	_, err := genqlient.AddReviewers(ctx, c.gclient, genqlient.RequestReviewsInput{
+		PullRequestId: pr.DatabaseId,
+		Union:         union,
+		UserIds:       userIDs,
 	})
 	if err != nil {
 		log.Fatal().
-			Str("id", pr.ID).
+			Str("id", pr.Id).
+			Str("databaseId", pr.DatabaseId).
 			Int("number", pr.Number).
 			Str("title", pr.Title).
 			Strs("userIDs", userIDs).
@@ -531,13 +561,14 @@ func (c *client) AddReviewers(ctx context.Context, pr *github.PullRequest, userI
 }
 
 func (c *client) CommentPullRequest(ctx context.Context, pr *github.PullRequest, comment string) {
-	_, err := c.api.CommentPullRequest(ctx, genclient.AddCommentInput{
-		SubjectId: pr.ID,
+	_, err := genqlient.CommentPullRequest(ctx, c.gclient, genqlient.AddCommentInput{
+		SubjectId: pr.Id,
 		Body:      comment,
 	})
 	if err != nil {
 		log.Fatal().
-			Str("id", pr.ID).
+			Str("id", pr.Id).
+			Str("databaseId", pr.DatabaseId).
 			Int("number", pr.Number).
 			Str("title", pr.Title).
 			Err(err).
@@ -550,37 +581,40 @@ func (c *client) CommentPullRequest(ctx context.Context, pr *github.PullRequest,
 }
 
 func (c *client) MergePullRequest(ctx context.Context,
-	pr *github.PullRequest, mergeMethod genclient.PullRequestMergeMethod) {
+	pr *github.PullRequest, mergeMethod genqlient.PullRequestMergeMethod) error {
 	log.Debug().
 		Interface("PR", pr).
 		Str("mergeMethod", string(mergeMethod)).
 		Msg("MergePullRequest")
 
-	var err error
+	email, err := c.git.Email()
+	if err != nil {
+		return fmt.Errorf("unable to get user email %w", err)
+	}
+
 	if c.config.Repo.MergeQueue {
-		_, err = c.api.AutoMergePullRequest(ctx, genclient.EnablePullRequestAutoMergeInput{
-			PullRequestId: pr.ID,
-			MergeMethod:   &mergeMethod,
+		_, err = genqlient.AutoMergePullRequest(ctx, c.gclient, genqlient.EnablePullRequestAutoMergeInput{
+			AuthorEmail:     email,
+			PullRequestId:   pr.Id,
+			MergeMethod:     mergeMethod,
+			ExpectedHeadOid: pr.Commit.CommitHash,
 		})
 	} else {
-		_, err = c.api.MergePullRequest(ctx, genclient.MergePullRequestInput{
-			PullRequestId: pr.ID,
-			MergeMethod:   &mergeMethod,
+		_, err = genqlient.MergePullRequest(ctx, c.gclient, genqlient.MergePullRequestInput{
+			AuthorEmail:     email,
+			PullRequestId:   pr.Id,
+			MergeMethod:     mergeMethod,
+			ExpectedHeadOid: pr.Commit.CommitHash,
 		})
 	}
 	if err != nil {
-		log.Fatal().
-			Str("id", pr.ID).
-			Int("number", pr.Number).
-			Str("title", pr.Title).
-			Err(err).
-			Msg("pull request merge failed")
+		return fmt.Errorf("unable to merge %s %w", pr.Id, err)
 	}
-	check(err)
 
 	if c.config.User.LogGitHubCalls {
 		fmt.Printf("> github merge %d : %s\n", pr.Number, pr.Title)
 	}
+	return nil
 }
 
 func (c *client) MergePullRequest2(ctx context.Context, owner string, repoName string, number int, commitMessage string, options *gogithub.PullRequestOptions) error {
@@ -594,47 +628,27 @@ func (c *client) EditPullRequest2(ctx context.Context, owner string, repoName st
 	return err
 }
 
-func (c *client) ClosePullRequest(ctx context.Context, pr *github.PullRequest) {
+func (c *client) ClosePullRequest(ctx context.Context, pr *github.PullRequest) error {
 	log.Debug().Interface("PR", pr).Msg("ClosePullRequest")
-	_, err := c.api.ClosePullRequest(ctx, genclient.ClosePullRequestInput{
-		PullRequestId: pr.ID,
+	_, err := genqlient.ClosePullRequest(ctx, c.gclient, genqlient.ClosePullRequestInput{
+		PullRequestId: pr.Id,
 	})
 	if err != nil {
-		log.Fatal().
-			Str("id", pr.ID).
-			Int("number", pr.Number).
-			Str("title", pr.Title).
-			Err(err).
-			Msg("pull request close failed")
+		return fmt.Errorf("unable to close PR %s %w", pr.Id, err)
 	}
 
 	if c.config.User.LogGitHubCalls {
 		fmt.Printf("> github close %d : %s\n", pr.Number, pr.Title)
 	}
+
+	return nil
 }
 
+func (c *client) PullRequestsAndStatus(ctx context.Context, repo_owner string, repo_name string) (*genqlient.PullRequestsAndStatusResponse, error) {
+	return genqlient.PullRequestsAndStatus(ctx, c.gclient, repo_owner, repo_name)
+}
 func (c *client) GetClient() genclient.Client {
 	return c.api
-}
-
-func (c *client) ListPullRequests(ctx context.Context, owner string, repo string, opts *gogithub.PullRequestListOptions) ([]*gogithub.PullRequest, error) {
-	prs, _, err := c.goghclient.PullRequests.List(ctx, owner, repo, opts)
-	return prs, err
-}
-
-func (c *client) GetPullRequest(ctx context.Context, owner string, repo string, number int) (*gogithub.PullRequest, error) {
-	pr, _, err := c.goghclient.PullRequests.Get(ctx, owner, repo, number)
-	return pr, err
-}
-
-func (c *client) ListPullRequestReviews(ctx context.Context, owner string, repo string, number int, opts *gogithub.ListOptions) ([]*gogithub.PullRequestReview, error) {
-	reviews, _, err := c.goghclient.PullRequests.ListReviews(ctx, owner, repo, number, opts)
-	return reviews, err
-}
-
-func (c *client) GetCombinedStatus(ctx context.Context, owner string, repo string, ref string, opts *gogithub.ListOptions) (*gogithub.CombinedStatus, error) {
-	combinedStatus, _, err := c.goghclient.Repositories.GetCombinedStatus(ctx, owner, repo, ref, opts)
-	return combinedStatus, err
 }
 
 func check(err error) {

@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/ejoffe/spr/git"
-	"github.com/ejoffe/spr/github/githubclient/gen/genclient"
+	"github.com/ejoffe/spr/github/githubclient/genqlient"
 )
 
 type Outputter interface {
@@ -61,26 +61,27 @@ func (co CommitOutputter) Output() *string {
 type operation string
 
 const (
-	GetInfoOP                = "GetInfo"
-	GetAssignableUsersOP     = "GetAssignableUsers"
-	CreatePullRequestOP      = "CreatePullRequest"
-	UpdatePullRequestOP      = "UpdatePullRequest"
-	AddReviewersOP           = "AddReviewers"
-	CommentPullRequestOP     = "CommentPullRequest"
-	MergePullRequestOP       = "MergePullRequest"
-	ClosePullRequestOP       = "ClosePullRequest"
-	EditPullRequestOP        = "EditPullRequest"
-	ListPullRequestsOP       = "ListPullRequests"
-	GetPullRequestOP         = "GetPullRequest"
-	ListPullRequestReviewsOP = "ListPullRequestReviews"
-	GetCombinedStatusOP      = "GetCombinedStatus"
+	GetInfoOP                   = "GetInfo"
+	GetAssignableUsersOP        = "GetAssignableUsers"
+	CreatePullRequestOP         = "CreatePullRequest"
+	UpdatePullRequestOP         = "UpdatePullRequest"
+	AddReviewersOP              = "AddReviewers"
+	CommentPullRequestOP        = "CommentPullRequest"
+	MergePullRequestOP          = "MergePullRequest"
+	ClosePullRequestOP          = "ClosePullRequest"
+	ClosePullRequestAndStatusOP = "ClosePullRequestAndStatus"
+	EditPullRequestOP           = "EditPullRequest"
+	ListPullRequestsOP          = "ListPullRequests"
+	GetPullRequestOP            = "GetPullRequest"
+	ListPullRequestReviewsOP    = "ListPullRequestReviews"
+	GetCombinedStatusOP         = "GetCombinedStatus"
 )
 
 type GithubExpectation struct {
 	Op          operation
 	Commit      git.Commit
 	Prev        *git.Commit
-	MergeMethod genclient.PullRequestMergeMethod
+	MergeMethod genqlient.PullRequestMergeMethod
 	UserIDs     []string
 }
 

@@ -3,6 +3,7 @@ module github.com/ejoffe/spr
 go 1.25
 
 require (
+	github.com/Khan/genqlient v0.8.1
 	github.com/deckarep/golang-set/v2 v2.8.0
 	github.com/ejoffe/profiletimer v0.2.0
 	github.com/ejoffe/rake v0.3.0
@@ -24,8 +25,9 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.3.0 // indirect
 	github.com/agnivade/levenshtein v1.1.1 // indirect
-	github.com/alexflint/go-arg v1.4.2 // indirect
-	github.com/alexflint/go-scalar v1.0.0 // indirect
+	github.com/alexflint/go-arg v1.5.1 // indirect
+	github.com/alexflint/go-scalar v1.2.0 // indirect
+	github.com/bmatcuk/doublestar/v4 v4.6.1 // indirect
 	github.com/caarlos0/env/v6 v6.10.1 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/coder/websocket v1.8.13 // indirect
@@ -51,7 +53,7 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/skeema/knownhosts v1.3.1 // indirect
-	github.com/vektah/gqlparser/v2 v2.5.1 // indirect
+	github.com/vektah/gqlparser/v2 v2.5.19 // indirect
 	github.com/vektra/mockery/v2 v2.10.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/xrash/smetrics v0.0.0-20250705151800-55b8f293f342 // indirect
@@ -65,3 +67,5 @@ require (
 )
 
 replace nhooyr.io/websocket => github.com/coder/websocket v1.8.7
+
+tool github.com/Khan/genqlient

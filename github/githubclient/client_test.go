@@ -7,7 +7,7 @@ import (
 	"github.com/ejoffe/spr/config"
 	"github.com/ejoffe/spr/git"
 	"github.com/ejoffe/spr/github"
-	"github.com/ejoffe/spr/github/githubclient/fezzik_types"
+	"github.com/ejoffe/spr/github/githubclient/genqlient"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,7 +15,7 @@ func TestMatchPullRequestStack(t *testing.T) {
 	tests := []struct {
 		name    string
 		commits []git.Commit
-		prs     fezzik_types.PullRequestConnection
+		prs     genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnection
 		expect  []*github.PullRequest
 	}{
 		{
@@ -25,20 +25,21 @@ func TestMatchPullRequestStack(t *testing.T) {
 				{CommitID: "00000002"},
 				{CommitID: "00000003"},
 			},
-			prs: fezzik_types.PullRequestConnection{
-				Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodes{
+			prs: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnection{
+				Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequest{
 					{
-						Id:              "2",
+						DatabaseId:      2,
+						Id:              "20",
 						HeadRefName:     "spr/master/00000002",
 						BaseRefName:     "master",
-						MergeQueueEntry: &fezzik_types.PullRequestsViewerPullRequestsNodesMergeQueueEntry{Id: "020"},
-						Commits: fezzik_types.PullRequestsViewerPullRequestsNodesCommits{
-							Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodes{
+						MergeQueueEntry: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestMergeQueueEntry{Id: "020"},
+						Commits: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnection{
+							Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommit{
 								{
-									fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodesCommit{Oid: "1", MessageBody: "commit-id:1"},
+									genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommitCommit{Oid: "1", MessageBody: "commit-id:1"},
 								},
 								{
-									fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodesCommit{Oid: "2", MessageBody: "commit-id:2"},
+									genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommitCommit{Oid: "2", MessageBody: "commit-id:2"},
 								},
 							},
 						},
@@ -47,7 +48,8 @@ func TestMatchPullRequestStack(t *testing.T) {
 			},
 			expect: []*github.PullRequest{
 				{
-					ID:         "2",
+					DatabaseId: "2",
+					Id:         "20",
 					FromBranch: "spr/master/00000002",
 					ToBranch:   "master",
 					Commit: git.Commit{
@@ -74,32 +76,34 @@ func TestMatchPullRequestStack(t *testing.T) {
 				{CommitID: "00000003"},
 				{CommitID: "00000004"},
 			},
-			prs: fezzik_types.PullRequestConnection{
-				Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodes{
+			prs: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnection{
+				Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequest{
 					{
-						Id:              "2",
+						DatabaseId:      2,
+						Id:              "20",
 						HeadRefName:     "spr/master/00000002",
 						BaseRefName:     "master",
-						MergeQueueEntry: &fezzik_types.PullRequestsViewerPullRequestsNodesMergeQueueEntry{Id: "020"},
-						Commits: fezzik_types.PullRequestsViewerPullRequestsNodesCommits{
-							Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodes{
+						MergeQueueEntry: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestMergeQueueEntry{Id: "020"},
+						Commits: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnection{
+							Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommit{
 								{
-									fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodesCommit{Oid: "1", MessageBody: "commit-id:1"},
+									genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommitCommit{Oid: "1", MessageBody: "commit-id:1"},
 								},
 								{
-									fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodesCommit{Oid: "2", MessageBody: "commit-id:2"},
+									genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommitCommit{Oid: "2", MessageBody: "commit-id:2"},
 								},
 							},
 						},
 					},
 					{
-						Id:          "3",
+						DatabaseId:  3,
+						Id:          "30",
 						HeadRefName: "spr/master/00000003",
 						BaseRefName: "spr/master/00000002",
-						Commits: fezzik_types.PullRequestsViewerPullRequestsNodesCommits{
-							Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodes{
+						Commits: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnection{
+							Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommit{
 								{
-									fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodesCommit{Oid: "3", MessageBody: "commit-id:3"},
+									genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommitCommit{Oid: "3", MessageBody: "commit-id:3"},
 								},
 							},
 						},
@@ -108,7 +112,8 @@ func TestMatchPullRequestStack(t *testing.T) {
 			},
 			expect: []*github.PullRequest{
 				{
-					ID:         "2",
+					DatabaseId: "2",
+					Id:         "20",
 					FromBranch: "spr/master/00000002",
 					ToBranch:   "master",
 					Commit: git.Commit{
@@ -126,7 +131,8 @@ func TestMatchPullRequestStack(t *testing.T) {
 					},
 				},
 				{
-					ID:         "3",
+					DatabaseId: "3",
+					Id:         "30",
 					FromBranch: "spr/master/00000003",
 					ToBranch:   "spr/master/00000002",
 					Commit: git.Commit{
@@ -146,13 +152,13 @@ func TestMatchPullRequestStack(t *testing.T) {
 		{
 			name:    "Empty",
 			commits: []git.Commit{},
-			prs:     fezzik_types.PullRequestConnection{},
+			prs:     genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnection{},
 			expect:  []*github.PullRequest{},
 		},
 		{
 			name:    "FirstCommit",
 			commits: []git.Commit{{CommitID: "00000001"}},
-			prs:     fezzik_types.PullRequestConnection{},
+			prs:     genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnection{},
 			expect:  []*github.PullRequest{},
 		},
 		{
@@ -161,16 +167,17 @@ func TestMatchPullRequestStack(t *testing.T) {
 				{CommitID: "00000001"},
 				{CommitID: "00000002"},
 			},
-			prs: fezzik_types.PullRequestConnection{
-				Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodes{
+			prs: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnection{
+				Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequest{
 					{
-						Id:          "1",
+						DatabaseId:  1,
+						Id:          "10",
 						HeadRefName: "spr/master/00000001",
 						BaseRefName: "master",
-						Commits: fezzik_types.PullRequestsViewerPullRequestsNodesCommits{
-							Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodes{
+						Commits: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnection{
+							Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommit{
 								{
-									fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodesCommit{Oid: "1"},
+									genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommitCommit{Oid: "1"},
 								},
 							},
 						},
@@ -179,7 +186,8 @@ func TestMatchPullRequestStack(t *testing.T) {
 			},
 			expect: []*github.PullRequest{
 				{
-					ID:         "1",
+					DatabaseId: "1",
+					Id:         "10",
 					FromBranch: "spr/master/00000001",
 					ToBranch:   "master",
 					Commit: git.Commit{
@@ -199,28 +207,30 @@ func TestMatchPullRequestStack(t *testing.T) {
 				{CommitID: "00000002"},
 				{CommitID: "00000003"},
 			},
-			prs: fezzik_types.PullRequestConnection{
-				Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodes{
+			prs: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnection{
+				Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequest{
 					{
-						Id:          "1",
+						DatabaseId:  1,
+						Id:          "10",
 						HeadRefName: "spr/master/00000001",
 						BaseRefName: "master",
-						Commits: fezzik_types.PullRequestsViewerPullRequestsNodesCommits{
-							Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodes{
+						Commits: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnection{
+							Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommit{
 								{
-									fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodesCommit{Oid: "1"},
+									genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommitCommit{Oid: "1"},
 								},
 							},
 						},
 					},
 					{
-						Id:          "2",
+						DatabaseId:  2,
+						Id:          "20",
 						HeadRefName: "spr/master/00000002",
 						BaseRefName: "spr/master/00000001",
-						Commits: fezzik_types.PullRequestsViewerPullRequestsNodesCommits{
-							Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodes{
+						Commits: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnection{
+							Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommit{
 								{
-									fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodesCommit{Oid: "2"},
+									genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommitCommit{Oid: "2"},
 								},
 							},
 						},
@@ -229,7 +239,8 @@ func TestMatchPullRequestStack(t *testing.T) {
 			},
 			expect: []*github.PullRequest{
 				{
-					ID:         "1",
+					DatabaseId: "1",
+					Id:         "10",
 					FromBranch: "spr/master/00000001",
 					ToBranch:   "master",
 					Commit: git.Commit{
@@ -241,7 +252,8 @@ func TestMatchPullRequestStack(t *testing.T) {
 					},
 				},
 				{
-					ID:         "2",
+					DatabaseId: "2",
+					Id:         "20",
 					FromBranch: "spr/master/00000002",
 					ToBranch:   "spr/master/00000001",
 					Commit: git.Commit{
@@ -257,16 +269,17 @@ func TestMatchPullRequestStack(t *testing.T) {
 		{
 			name:    "RemoveOnlyCommit",
 			commits: []git.Commit{},
-			prs: fezzik_types.PullRequestConnection{
-				Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodes{
+			prs: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnection{
+				Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequest{
 					{
-						Id:          "1",
+						DatabaseId:  1,
+						Id:          "10",
 						HeadRefName: "spr/master/00000001",
 						BaseRefName: "master",
-						Commits: fezzik_types.PullRequestsViewerPullRequestsNodesCommits{
-							Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodes{
+						Commits: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnection{
+							Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommit{
 								{
-									fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodesCommit{Oid: "1"},
+									genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommitCommit{Oid: "1"},
 								},
 							},
 						},
@@ -281,40 +294,43 @@ func TestMatchPullRequestStack(t *testing.T) {
 				{CommitID: "00000001"},
 				{CommitID: "00000002"},
 			},
-			prs: fezzik_types.PullRequestConnection{
-				Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodes{
+			prs: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnection{
+				Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequest{
 					{
-						Id:          "1",
+						DatabaseId:  1,
+						Id:          "10",
 						HeadRefName: "spr/master/00000001",
 						BaseRefName: "master",
-						Commits: fezzik_types.PullRequestsViewerPullRequestsNodesCommits{
-							Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodes{
+						Commits: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnection{
+							Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommit{
 								{
-									fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodesCommit{Oid: "1"},
+									genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommitCommit{Oid: "1"},
 								},
 							},
 						},
 					},
 					{
-						Id:          "3",
+						DatabaseId:  3,
+						Id:          "30",
 						HeadRefName: "spr/master/00000003",
 						BaseRefName: "spr/master/00000002",
-						Commits: fezzik_types.PullRequestsViewerPullRequestsNodesCommits{
-							Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodes{
+						Commits: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnection{
+							Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommit{
 								{
-									fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodesCommit{Oid: "2"},
+									genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommitCommit{Oid: "2"},
 								},
 							},
 						},
 					},
 					{
-						Id:          "2",
+						DatabaseId:  2,
+						Id:          "20",
 						HeadRefName: "spr/master/00000002",
 						BaseRefName: "spr/master/00000001",
-						Commits: fezzik_types.PullRequestsViewerPullRequestsNodesCommits{
-							Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodes{
+						Commits: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnection{
+							Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommit{
 								{
-									fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodesCommit{Oid: "2"},
+									genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommitCommit{Oid: "2"},
 								},
 							},
 						},
@@ -323,7 +339,8 @@ func TestMatchPullRequestStack(t *testing.T) {
 			},
 			expect: []*github.PullRequest{
 				{
-					ID:         "1",
+					DatabaseId: "1",
+					Id:         "10",
 					FromBranch: "spr/master/00000001",
 					ToBranch:   "master",
 					Commit: git.Commit{
@@ -335,7 +352,8 @@ func TestMatchPullRequestStack(t *testing.T) {
 					},
 				},
 				{
-					ID:         "2",
+					DatabaseId: "2",
+					Id:         "20",
 					FromBranch: "spr/master/00000002",
 					ToBranch:   "spr/master/00000001",
 					Commit: git.Commit{
@@ -354,40 +372,43 @@ func TestMatchPullRequestStack(t *testing.T) {
 				{CommitID: "00000001"},
 				{CommitID: "00000003"},
 			},
-			prs: fezzik_types.PullRequestConnection{
-				Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodes{
+			prs: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnection{
+				Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequest{
 					{
-						Id:          "1",
+						DatabaseId:  1,
+						Id:          "10",
 						HeadRefName: "spr/master/00000001",
 						BaseRefName: "master",
-						Commits: fezzik_types.PullRequestsViewerPullRequestsNodesCommits{
-							Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodes{
+						Commits: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnection{
+							Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommit{
 								{
-									fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodesCommit{Oid: "1"},
+									genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommitCommit{Oid: "1"},
 								},
 							},
 						},
 					},
 					{
-						Id:          "2",
+						DatabaseId:  2,
+						Id:          "20",
 						HeadRefName: "spr/master/00000002",
 						BaseRefName: "spr/master/00000001",
-						Commits: fezzik_types.PullRequestsViewerPullRequestsNodesCommits{
-							Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodes{
+						Commits: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnection{
+							Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommit{
 								{
-									fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodesCommit{Oid: "2"},
+									genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommitCommit{Oid: "2"},
 								},
 							},
 						},
 					},
 					{
-						Id:          "3",
+						DatabaseId:  3,
+						Id:          "30",
 						HeadRefName: "spr/master/00000003",
 						BaseRefName: "spr/master/00000002",
-						Commits: fezzik_types.PullRequestsViewerPullRequestsNodesCommits{
-							Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodes{
+						Commits: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnection{
+							Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommit{
 								{
-									fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodesCommit{Oid: "3"},
+									genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommitCommit{Oid: "3"},
 								},
 							},
 						},
@@ -396,7 +417,8 @@ func TestMatchPullRequestStack(t *testing.T) {
 			},
 			expect: []*github.PullRequest{
 				{
-					ID:         "1",
+					DatabaseId: "1",
+					Id:         "10",
 					FromBranch: "spr/master/00000001",
 					ToBranch:   "master",
 					Commit: git.Commit{
@@ -408,7 +430,8 @@ func TestMatchPullRequestStack(t *testing.T) {
 					},
 				},
 				{
-					ID:         "2",
+					DatabaseId: "2",
+					Id:         "20",
 					FromBranch: "spr/master/00000002",
 					ToBranch:   "spr/master/00000001",
 					Commit: git.Commit{
@@ -420,7 +443,8 @@ func TestMatchPullRequestStack(t *testing.T) {
 					},
 				},
 				{
-					ID:         "3",
+					DatabaseId: "3",
+					Id:         "30",
 					FromBranch: "spr/master/00000003",
 					ToBranch:   "spr/master/00000002",
 					Commit: git.Commit{
@@ -439,40 +463,43 @@ func TestMatchPullRequestStack(t *testing.T) {
 				{CommitID: "00000002"},
 				{CommitID: "00000003"},
 			},
-			prs: fezzik_types.PullRequestConnection{
-				Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodes{
+			prs: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnection{
+				Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequest{
 					{
-						Id:          "1",
+						DatabaseId:  1,
+						Id:          "10",
 						HeadRefName: "spr/master/00000001",
 						BaseRefName: "master",
-						Commits: fezzik_types.PullRequestsViewerPullRequestsNodesCommits{
-							Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodes{
+						Commits: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnection{
+							Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommit{
 								{
-									fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodesCommit{Oid: "1"},
+									genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommitCommit{Oid: "1"},
 								},
 							},
 						},
 					},
 					{
-						Id:          "2",
+						DatabaseId:  2,
+						Id:          "20",
 						HeadRefName: "spr/master/00000002",
 						BaseRefName: "spr/master/00000001",
-						Commits: fezzik_types.PullRequestsViewerPullRequestsNodesCommits{
-							Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodes{
+						Commits: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnection{
+							Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommit{
 								{
-									fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodesCommit{Oid: "2"},
+									genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommitCommit{Oid: "2"},
 								},
 							},
 						},
 					},
 					{
-						Id:          "3",
+						DatabaseId:  3,
+						Id:          "30",
 						HeadRefName: "spr/master/00000003",
 						BaseRefName: "spr/master/00000002",
-						Commits: fezzik_types.PullRequestsViewerPullRequestsNodesCommits{
-							Nodes: &fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodes{
+						Commits: genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnection{
+							Nodes: []genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommit{
 								{
-									fezzik_types.PullRequestsViewerPullRequestsNodesCommitsNodesCommit{Oid: "3"},
+									genqlient.PullRequestsWithMergeQueueViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommitCommit{Oid: "3"},
 								},
 							},
 						},
@@ -481,7 +508,8 @@ func TestMatchPullRequestStack(t *testing.T) {
 			},
 			expect: []*github.PullRequest{
 				{
-					ID:         "1",
+					DatabaseId: "1",
+					Id:         "10",
 					FromBranch: "spr/master/00000001",
 					ToBranch:   "master",
 					Commit: git.Commit{
@@ -494,7 +522,8 @@ func TestMatchPullRequestStack(t *testing.T) {
 				},
 
 				{
-					ID:         "2",
+					DatabaseId: "2",
+					Id:         "20",
 					FromBranch: "spr/master/00000002",
 					ToBranch:   "spr/master/00000001",
 					Commit: git.Commit{
@@ -506,7 +535,8 @@ func TestMatchPullRequestStack(t *testing.T) {
 					},
 				},
 				{
-					ID:         "3",
+					DatabaseId: "3",
+					Id:         "30",
 					FromBranch: "spr/master/00000003",
 					ToBranch:   "spr/master/00000002",
 					Commit: git.Commit{

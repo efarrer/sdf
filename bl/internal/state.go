@@ -3,31 +3,27 @@ package internal
 import (
 	"context"
 	"fmt"
+	"iter"
 	"regexp"
 	"slices"
 	"strings"
 	"unicode/utf8"
 
 	mapset "github.com/deckarep/golang-set/v2"
-	"github.com/ejoffe/spr/bl/concurrent"
-	"github.com/ejoffe/spr/bl/gitapi"
 	"github.com/ejoffe/spr/bl/maputils"
+	"github.com/ejoffe/spr/bl/ptrutils"
 	"github.com/ejoffe/spr/config"
 	"github.com/ejoffe/spr/git"
 	"github.com/ejoffe/spr/github"
+	"github.com/ejoffe/spr/github/githubclient/genqlient"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	gogithub "github.com/google/go-github/v69/github"
 )
 
-// A PRCommit is a commit its associated Pull Request, and metadata.
-type PRCommit struct {
+// A LocalCommit is a commit its associated Pull Request, and metadata.
+// Note that the github.PullRequest also might have a copy of the commit and that commit will have different hash as it
+// when is pushed to the remote repo.
+type LocalCommit struct {
 	git.Commit
-
-	// The child of this commit
-	Child *PRCommit
-
-	// The parent of this commit.
-	Parent *PRCommit
 
 	// The pull request that has this commit at the top
 	PullRequest *github.PullRequest
@@ -42,22 +38,17 @@ type PRCommit struct {
 
 // Indices is a list of commit indices and the destination pull request set index
 type Indices struct {
-	DestinationPRIndex *int            // Matches PRCommit.PRIndex
-	CommitIndexes      mapset.Set[int] // Matches PRCommit.Index
+	DestinationPRIndex *int            // Matches LocalCommit.PRIndex
+	CommitIndexes      mapset.Set[int] // Matches LocalCommit.Index
 }
 
 // State holds the state of the local commits and PRs
 type State struct {
+	RepositoryId string
 	// The 0th commit in this slice is the HEAD commit
-	Commits       []*PRCommit
+	LocalCommits  []*LocalCommit
 	OrphanedPRs   mapset.Set[*github.PullRequest]
 	MutatedPRSets mapset.Set[int]
-}
-
-type PullRequestStatus struct {
-	PullRequest    *gogithub.PullRequest
-	CombinedStatus *gogithub.CombinedStatus
-	Reviews        []*gogithub.PullRequestReview
 }
 
 func indexColor(i *int) string {
@@ -109,7 +100,7 @@ func FormatSubject(subject string) string {
 	return truncated + " ..."
 }
 
-func (prc PRCommit) PRSetString(config *config.Config) string {
+func (prc LocalCommit) PRSetString(config *config.Config) string {
 	noPrMessage := "No Pull Request Created"
 	empty := github.StatusBitIcons(config)["empty"]
 
@@ -163,97 +154,69 @@ func derefOrDefault[T any](ptr *T) T {
 // NewReadState pulls git and github information and constructs the state of the local unmerged commits.
 // The resulting State contains the ordered and linked commits along with their associated PRs
 func NewReadState(ctx context.Context, config *config.Config, gitcmd git.GitInterface, github github.GitHubInterface) (*State, error) {
-	repoOwner := config.Repo.GitHubRepoOwner
-	repoName := config.Repo.GitHubRepoName
-
-	gitapi := gitapi.New(config, gitcmd, github)
-	gitapi.AppendCommitId()
-
-	prs, err := github.ListPullRequests(ctx, repoOwner, repoName, nil)
+	prAndStatus, err := github.PullRequestsAndStatus(ctx, config.Repo.GitHubRepoOwner, config.Repo.GitHubRepoName)
 	if err != nil {
-		return nil, fmt.Errorf("getting pull requests for %s/%s: %w", repoOwner, repoName, err)
-	}
-
-	prss, err := concurrent.SliceMap(prs, func(pr *gogithub.PullRequest) (PullRequestStatus, error) {
-		getCombinedAwait := concurrent.Async5Ret2(
-			github.GetCombinedStatus,
-			ctx, repoOwner, repoName, *pr.Head.SHA, nil,
-		)
-
-		prListReviewsAwait := concurrent.Async5Ret2(
-			github.ListPullRequestReviews,
-			ctx, repoOwner, repoName, *pr.Number, nil,
-		)
-
-		prGetAwait := concurrent.Async4Ret2(
-			github.GetPullRequest,
-			ctx, repoOwner, repoName, *pr.Number,
-		)
-
-		combinedStatus, err := getCombinedAwait.Await()
-		if err != nil {
-			return PullRequestStatus{}, fmt.Errorf("getting combined status for %s/%s PR:%d: %w", repoOwner, repoName, *pr.Number, err)
-		}
-
-		reviews, err := prListReviewsAwait.Await()
-		if err != nil {
-			return PullRequestStatus{}, fmt.Errorf("getting pull request reviews for %s/%s PR:%d: %w", repoOwner, repoName, *pr.Number, err)
-		}
-
-		prRes, err := prGetAwait.Await()
-		if err != nil {
-			return PullRequestStatus{}, fmt.Errorf("getting pull request details for %s/%s PR:%d: %w", repoOwner, repoName, *pr.Number, err)
-		}
-
-		return PullRequestStatus{PullRequest: prRes, CombinedStatus: combinedStatus, Reviews: reviews}, nil
-	})
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get pull requests and status: %w", err)
 	}
 
 	commits, err := gitcmd.UnMergedCommits(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("getting unmerged commits %w", err)
+		return nil, fmt.Errorf("failed to get unmerged commits: %w", err)
 	}
 
-	return NewState(ctx, config, prss, commits)
+	return NewState(ctx, config, prAndStatus, commits)
 }
 
-// NewReadState composes git and github information and constructs the state of the local unmerged commits.
+// NewState composes git and github information and constructs the state of the local unmerged commits.
 // The resulting State contains the ordered and linked commits along with their associated PRs
-func NewState(
-	ctx context.Context,
-	config *config.Config,
-	prss []PullRequestStatus,
-	commits []*object.Commit,
-) (*State, error) {
-
-	prMap := GeneratePullRequestMap(prss)
+func NewState(ctx context.Context, config *config.Config, prAndStatus *genqlient.PullRequestsAndStatusResponse, commits []*object.Commit) (*State, error) {
+	prMap := GeneratePullRequestMap(prAndStatus)
 
 	gitCommits := GenerateCommits(commits)
 	for _, gitCommit := range gitCommits {
 		gitCommit.PullRequest = prMap[gitCommit.CommitID]
 	}
 
-	orphanedPRs := AssignPullRequests(config, gitCommits, prMap)
+	orphanedPRs := GetOrphanedPRs(gitCommits, prMap)
+	UpdateRepoToCommitIdToPrSet(config, gitCommits, prMap)
+	AssignPullRequests(config, gitCommits, prMap)
 
 	SetStackedCheck(config, gitCommits)
 
 	return &State{
-		Commits:       gitCommits,
+		RepositoryId:  prAndStatus.Repository.Id,
+		LocalCommits:  gitCommits,
 		OrphanedPRs:   orphanedPRs,
 		MutatedPRSets: mapset.NewSet[int](),
 	}, nil
 }
 
-func AssignPullRequests(
-	config *config.Config,
-	gitCommits []*PRCommit,
+// GetOrphanedPRs gets all PRs that reference commits that aren't in the unmerged-commits
+func GetOrphanedPRs(
+	gitCommits []*LocalCommit,
 	prMap map[string]*github.PullRequest,
 ) mapset.Set[*github.PullRequest] {
-	// Add unused PRs to the orphans list
+	// Add PRs that reference commits that are not part of the unmerged-commits to the orphans list
 	prGCMap := maputils.NewGC(prMap)
-	// Get the mapping of commitIds to PR Set
+
+	for _, gitCommit := range gitCommits {
+		prGCMap.Lookup(gitCommit.CommitID)
+	}
+
+	orphanedPrs := mapset.NewSet[*github.PullRequest]()
+	for _, v := range prGCMap.GetUnaccessed() {
+		orphanedPrs.Add(v)
+	}
+
+	return orphanedPrs
+}
+
+func UpdateRepoToCommitIdToPrSet(
+	config *config.Config,
+	gitCommits []*LocalCommit,
+	prMap map[string]*github.PullRequest,
+) {
+	// Get the mapping of commitIds to PR Sets
 	prSetMap, ok := config.State.RepoToCommitIdToPRSet[config.Repo.GitHubRepoName]
 	if !ok {
 		prSetMap = map[string]int{}
@@ -262,28 +225,35 @@ func AssignPullRequests(
 	purgeMap := maputils.NewGC(prSetMap)
 
 	for _, gitCommit := range gitCommits {
-		if pr, ok := prGCMap.Lookup(gitCommit.CommitID); ok {
-			var prIndexPtr *int
-			if prIndex, ok := purgeMap.Lookup(gitCommit.CommitID); ok {
-				prIndexPtr = &prIndex
-			}
-			gitCommit.PRIndex = prIndexPtr
-			gitCommit.PullRequest = pr
-			pr.Commit = gitCommit.Commit
+		if _, ok := prMap[gitCommit.CommitID]; ok {
+			purgeMap.Lookup(gitCommit.CommitID)
 		}
 	}
 
-	orphanedPrs := mapset.NewSet[*github.PullRequest]()
-	for _, v := range prGCMap.GetUnaccessed() {
-		orphanedPrs.Add(v)
-	}
-
 	config.State.RepoToCommitIdToPRSet[config.Repo.GitHubRepoName] = purgeMap.PurgeUnaccessed()
-
-	return orphanedPrs
 }
 
-func SetStackedCheck(config *config.Config, gitCommits []*PRCommit) {
+func AssignPullRequests(
+	config *config.Config,
+	gitCommits []*LocalCommit,
+	prMap map[string]*github.PullRequest,
+) {
+	// Get the mapping of commitIds to PR Set
+	prSetMap, ok := config.State.RepoToCommitIdToPRSet[config.Repo.GitHubRepoName]
+	if !ok {
+		prSetMap = map[string]int{}
+	}
+	for _, gitCommit := range gitCommits {
+		if pr, ok := prMap[gitCommit.CommitID]; ok {
+			if prIndex, ok := prSetMap[gitCommit.CommitID]; ok {
+				gitCommit.PRIndex = ptrutils.Ptr(prIndex)
+			}
+			gitCommit.PullRequest = pr
+		}
+	}
+}
+
+func SetStackedCheck(config *config.Config, gitCommits []*LocalCommit) {
 	for i := len(gitCommits) - 1; i >= 0; i-- {
 		cm := gitCommits[i]
 		if cm.PullRequest == nil {
@@ -309,12 +279,16 @@ func SetStackedCheck(config *config.Config, gitCommits []*PRCommit) {
 	}
 }
 
+func (s *State) LocalCommitsIter() iter.Seq[*LocalCommit] {
+	return slices.Values(s.LocalCommits)
+}
+
 // Returns the HEAD commit
-func (s *State) Head() *PRCommit {
-	if len(s.Commits) == 0 {
+func (s *State) Head() *LocalCommit {
+	if len(s.LocalCommits) == 0 {
 		return nil
 	}
-	return s.Commits[0]
+	return s.LocalCommits[0]
 }
 
 // ApplyIndices applies the commits in state and updates the State's mutatedPRSets
@@ -327,7 +301,7 @@ func (s *State) ApplyIndices(indices *Indices) {
 	// If DestinationPRIndex is null find the next available PR index and update DestinationPRIndex
 	if indices.DestinationPRIndex == nil {
 		nextDestinationPRIndex := 0
-		for _, cm := range s.Commits {
+		for _, cm := range s.LocalCommits {
 			if cm.PRIndex != nil && *cm.PRIndex >= nextDestinationPRIndex {
 				nextDestinationPRIndex = *cm.PRIndex + 1
 			}
@@ -338,7 +312,7 @@ func (s *State) ApplyIndices(indices *Indices) {
 
 	// iterate over the commits and update the PRIndex for all matching commitIndex
 	// clear the PRs for existing PRs that are in the PRIndex but not in the commitIndex
-	for _, cm := range s.Commits {
+	for _, cm := range s.LocalCommits {
 		shouldBeInPrSet := indices.CommitIndexes.Contains(cm.Index)
 		isInPrSet := cm.PRIndex != nil && *cm.PRIndex == *indices.DestinationPRIndex
 
@@ -371,7 +345,7 @@ func (s *State) ApplyIndices(indices *Indices) {
 
 	// It is possible to mutate a PR set out of existence. So purge any in the MutatedPRSets that no longer exist.
 	existingPRSets := mapset.NewSet[int]()
-	for _, cm := range s.Commits {
+	for _, cm := range s.LocalCommits {
 		if cm.PRIndex == nil {
 			continue
 		}
@@ -381,10 +355,10 @@ func (s *State) ApplyIndices(indices *Indices) {
 }
 
 // CommitsByPRSet returns all of the commits for the given PR set with the newest commits first.
-// Note that the Parent, Child, Index fields are not changed in the returned PRCommits
-func (s *State) CommitsByPRSet(prIndex int) []*PRCommit {
-	var commits []*PRCommit
-	for _, ci := range s.Commits {
+// Note that the Index fields are not changed in the returned LocalCommits
+func (s *State) CommitsByPRSet(prIndex int) []*LocalCommit {
+	var commits []*LocalCommit
+	for _, ci := range s.LocalCommits {
 		if ci.PRIndex == nil {
 			continue
 		}
@@ -403,7 +377,7 @@ func (s *State) MutatedPRSetsWithOutOfOrderCommits() mapset.Set[int] {
 	for prSet := range s.MutatedPRSets.Iter() {
 		lastTo := ""
 
-		for _, commit := range s.Commits {
+		for _, commit := range s.LocalCommits {
 			// If the commit doesn't have a PR then we can ignore it.
 			if commit.PullRequest == nil {
 				continue
@@ -431,8 +405,8 @@ func (s *State) MutatedPRSetsWithOutOfOrderCommits() mapset.Set[int] {
 	return outOfOrderPRSets
 }
 
-// PullRequest gets all pull request from the PRCommits.
-func PullRequests(commits []*PRCommit) []*github.PullRequest {
+// PullRequest gets all pull request from the LocalCommits.
+func PullRequests(commits []*LocalCommit) []*github.PullRequest {
 	pullRequests := make([]*github.PullRequest, 0, len(commits))
 	for _, ci := range commits {
 		if ci.PullRequest != nil {
@@ -442,32 +416,43 @@ func PullRequests(commits []*PRCommit) []*github.PullRequest {
 	return pullRequests
 }
 
-func GeneratePullRequestMap(prss []PullRequestStatus) map[string]*github.PullRequest {
-	if prss == nil {
-		return nil
+// GeneratePullRequestMap creates a mapping of commit-id:####### to the github.PullRequst for that commit
+func GeneratePullRequestMap(prAndStatus *genqlient.PullRequestsAndStatusResponse) map[string]*github.PullRequest {
+	if prAndStatus == nil || prAndStatus.Viewer.PullRequests.Nodes == nil {
+		return map[string]*github.PullRequest{}
 	}
 
-	// Map of commitId -> github.PullRequests
 	prMap := map[string]*github.PullRequest{}
 
-	for _, prs := range prss {
-		pr := prs.PullRequest
-		commitId := CommitIdFromBranch(*pr.Head.Ref)
-		if commitId == "" {
+	for _, prNode := range prAndStatus.Viewer.PullRequests.Nodes {
+		commitID := CommitIdFromBranch(prNode.HeadRefName)
+		if commitID == "" {
 			continue
 		}
-		fromBranch := derefOrDefault(derefOrDefault(pr.Head).Ref)
-		toBranch := derefOrDefault(derefOrDefault(pr.Base).Ref)
-		ghpr := &github.PullRequest{
-			ID:          fmt.Sprintf("%d", *pr.ID),
-			Number:      derefOrDefault(pr.Number),
-			FromBranch:  fromBranch,
-			ToBranch:    toBranch,
-			Title:       derefOrDefault(pr.Title),
-			Body:        derefOrDefault(pr.Body),
-			MergeStatus: ComputeMergeStatus(prs),
+
+		var commit genqlient.PullRequestsAndStatusViewerUserPullRequestsPullRequestConnectionNodesPullRequestCommitsPullRequestCommitConnectionNodesPullRequestCommitCommit
+		if len(prNode.Commits.Nodes) > 0 {
+			commit = prNode.Commits.Nodes[0].Commit
 		}
-		prMap[commitId] = ghpr
+
+		ghpr := &github.PullRequest{
+			Id:          prNode.Id,
+			DatabaseId:  fmt.Sprintf("%d", prNode.DatabaseId),
+			Number:      prNode.Number,
+			FromBranch:  prNode.HeadRefName,
+			ToBranch:    prNode.BaseRefName,
+			Title:       prNode.Title,
+			Body:        prNode.Body,
+			MergeStatus: ComputeMergeStatus(prNode),
+			Commit: git.Commit{
+				CommitID:   commitID,
+				CommitHash: commit.Oid,
+				Subject:    commit.MessageHeadline,
+				Body:       commit.MessageBody,
+				WIP:        IsWIP(commit.MessageHeadline),
+			},
+		}
+		prMap[commitID] = ghpr
 	}
 
 	return prMap
@@ -488,43 +473,40 @@ func CommitIdFromBranch(branchName string) string {
 	return commitId
 }
 
-func ComputeMergeStatus(prs PullRequestStatus) github.PullRequestMergeStatus {
+func ComputeMergeStatus(pr genqlient.PullRequestsAndStatusViewerUserPullRequestsPullRequestConnectionNodesPullRequest) github.PullRequestMergeStatus {
 	prms := github.PullRequestMergeStatus{}
-	if prs.CombinedStatus == nil || prs.CombinedStatus.State == nil {
-		prms.ChecksPass = github.CheckStatusUnknown
-	} else if prs.CombinedStatus.TotalCount != nil && *prs.CombinedStatus.TotalCount == 0 {
-		prms.ChecksPass = github.CheckStatusPass
-	} else if *prs.CombinedStatus.State == "success" {
-		prms.ChecksPass = github.CheckStatusPass
-	} else if *prs.CombinedStatus.State == "pending" {
-		prms.ChecksPass = github.CheckStatusPending
-	} else if *prs.CombinedStatus.State == "failure" {
+	switch pr.StatusCheckRollup.State {
+	case genqlient.StatusStateError:
+		fallthrough
+	case genqlient.StatusStateFailure:
 		prms.ChecksPass = github.CheckStatusFail
+	case genqlient.StatusStateExpected:
+		fallthrough
+	case genqlient.StatusStatePending:
+		prms.ChecksPass = github.CheckStatusPending
+	case "":
+		fallthrough
+	case genqlient.StatusStateSuccess:
+		prms.ChecksPass = github.CheckStatusPass
 	}
 
-	prms.NoConflicts = prs.PullRequest != nil && prs.PullRequest.Mergeable != nil && *prs.PullRequest.Mergeable
-
-	for _, review := range prs.Reviews {
-		if review.State != nil && *review.State == "APPROVED" {
-			prms.ReviewApproved = true
-			break
-		}
-	}
+	prms.NoConflicts = pr.Mergeable == genqlient.MergeableStateMergeable
+	prms.ReviewApproved = pr.ReviewDecision == genqlient.PullRequestReviewDecisionApproved
 
 	return prms
 }
 
-func GenerateCommits(commits []*object.Commit) []*PRCommit {
-	gitCommits := make([]*PRCommit, 0, len(commits))
+// GenerateCommits transforms a []*object.Commit to a []*LocalCommit
+func GenerateCommits(commits []*object.Commit) []*LocalCommit {
+	gitCommits := make([]*LocalCommit, 0, len(commits))
 
 	// Make sure that commits are always stored HEAD first.
 	commits = HeadFirst(commits)
 
-	var child *PRCommit
 	for i, cm := range commits {
 		commitId := CommitId(cm.Message)
 
-		c := &PRCommit{
+		c := &LocalCommit{
 			Commit: git.Commit{
 				CommitID:   commitId,
 				CommitHash: cm.Hash.String(),
@@ -532,18 +514,11 @@ func GenerateCommits(commits []*object.Commit) []*PRCommit {
 				Body:       Body(cm.Message),
 				WIP:        IsWIP(cm.Message),
 			},
-			Child:       child,
-			Parent:      nil,
 			PullRequest: nil,
 			Index:       len(commits) - (i + 1),
 			PRIndex:     nil,
 		}
-		// Point the previous one to us
-		if child != nil {
-			child.Parent = c
-		}
 		gitCommits = append(gitCommits, c)
-		child = c
 	}
 
 	return gitCommits
@@ -554,7 +529,7 @@ func (s *State) UpdatePRSetState(config *config.Config) {
 	// It is simpler to just build up a new map for this repo than to mutate the existing map
 	prSetMap := map[string]int{}
 
-	for _, commit := range s.Commits {
+	for _, commit := range s.LocalCommits {
 		if commit.PRIndex == nil {
 			continue
 		}
@@ -592,7 +567,7 @@ func CommitId(msg string) string {
 
 // IsWIP returns true if the message starts with "WIP"
 func IsWIP(msg string) bool {
-	return strings.HasPrefix(msg, "WIP")
+	return strings.HasPrefix(msg, "WIP") || strings.HasPrefix(msg, "[WIP]")
 }
 
 // Subject returns the first line of the message

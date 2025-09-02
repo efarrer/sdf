@@ -111,7 +111,7 @@ func asDestination(s string) (int, string, bool) {
 }
 
 // Evaluate evaluates the selector string and existing pull request sets and returns an Indices
-func Evaluate(commits []*internal.PRCommit, selector string) (internal.Indices, error) {
+func Evaluate(commits []*internal.LocalCommit, selector string) (internal.Indices, error) {
 	var destinationPRIndex *int
 	if destIndex, rest, ok := asDestination(selector); ok {
 		destinationPRIndex = &destIndex
@@ -125,7 +125,7 @@ func Evaluate(commits []*internal.PRCommit, selector string) (internal.Indices, 
 	}, err
 }
 
-func evalateCommitIndexes(commits []*internal.PRCommit, selector string) (mapset.Set[int], error) {
+func evalateCommitIndexes(commits []*internal.LocalCommit, selector string) (mapset.Set[int], error) {
 	commitIndexes := mapset.NewSet[int]()
 
 	selector = strings.TrimSpace(selector)

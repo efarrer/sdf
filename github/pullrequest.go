@@ -12,7 +12,8 @@ import (
 
 // PullRequest has GitHub pull request data
 type PullRequest struct {
-	ID         string
+	Id         string
+	DatabaseId string
 	Number     int
 	FromBranch string
 	ToBranch   string
@@ -26,11 +27,11 @@ type PullRequest struct {
 	InQueue     bool
 }
 
-type checkStatus int
+type CheckStatus int
 
 const (
 	// CheckStatusUnknown
-	CheckStatusUnknown checkStatus = iota
+	CheckStatusUnknown CheckStatus = iota
 
 	// CheckStatusPending when checks are still running
 	CheckStatusPending
@@ -45,7 +46,7 @@ const (
 // PullRequestMergeStatus is the merge status of a pull request
 type PullRequestMergeStatus struct {
 	// ChecksPass is the status of GitHub checks
-	ChecksPass checkStatus
+	ChecksPass CheckStatus
 
 	// ReviewApproved is true when a pull request is approved by a fellow reviewer
 	ReviewApproved bool
@@ -209,7 +210,7 @@ func TrimToTerminal(config *config.Config, line string) string {
 	return line
 }
 
-func (cs checkStatus) String(config *config.Config) string {
+func (cs CheckStatus) String(config *config.Config) string {
 	icons := StatusBitIcons(config)
 	if config.Repo.RequireChecks {
 		switch cs {

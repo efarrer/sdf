@@ -53,6 +53,10 @@ func (c *gqlclient) PullRequests(ctx context.Context,
 							oid
 							messageHeadline
 							messageBody
+							status {
+								id
+								state
+							}
 							statusCheckRollup {
 								state
 							}
@@ -98,6 +102,97 @@ func (c *gqlclient) PullRequests(ctx context.Context,
 	return data, resp.Errors
 }
 
+type PullRequestsAndStatusViewer struct {
+	Login        string
+	PullRequests fezzik_types.PullRequestConnection
+}
+
+type PullRequestsAndStatusRepository struct {
+	Id string
+}
+
+// PullRequestsAndStatusResponse response type for PullRequestsAndStatus
+type PullRequestsAndStatusResponse struct {
+	Viewer     PullRequestsAndStatusViewer
+	Repository *PullRequestsAndStatusRepository
+}
+
+// PullRequestsAndStatus from github/githubclient/queries.graphql:44
+func (c *gqlclient) PullRequestsAndStatus(ctx context.Context,
+	repoOwner string,
+	repoName string,
+) (*PullRequestsAndStatusResponse, error) {
+
+	var pullRequestsAndStatusOperation string = `
+	query PullRequestsAndStatus ($repo_owner: String!, $repo_name: String!) {
+	viewer {
+		login
+		pullRequests(first: 100, states: [OPEN]) {
+			nodes {
+				id
+				databaseId
+				number
+				title
+				body
+				baseRefName
+				headRefName
+				mergeable
+				mergeStateStatus
+				reviewDecision
+				statusCheckRollup {
+					state
+				}
+				commits(first: 100) {
+					nodes {
+						commit {
+							oid
+							messageHeadline
+							messageBody
+							statusCheckRollup {
+								state
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	repository(owner: $repo_owner, name: $repo_name) {
+		id
+	}
+}
+`
+
+	gqlreq := &client.GQLRequest{
+		OperationName: "PullRequestsAndStatus",
+		Query:         pullRequestsAndStatusOperation,
+		Variables: map[string]interface{}{
+			"repo_owner": repoOwner,
+			"repo_name":  repoName,
+		},
+	}
+
+	resp := &client.GQLResponse{
+		Data: &PullRequestsAndStatusResponse{},
+	}
+
+	err := c.gql.Query(ctx, gqlreq, resp)
+	if err != nil {
+		return nil, err
+	}
+
+	var data *PullRequestsAndStatusResponse
+	if resp.Data != nil {
+		data = resp.Data.(*PullRequestsAndStatusResponse)
+	}
+
+	if resp.Errors == nil {
+		return data, nil
+	}
+
+	return data, resp.Errors
+}
+
 type PullRequestsWithMergeQueueViewer struct {
 	Login        string
 	PullRequests fezzik_types.PullRequestConnection
@@ -113,7 +208,7 @@ type PullRequestsWithMergeQueueResponse struct {
 	Repository *PullRequestsWithMergeQueueRepository
 }
 
-// PullRequestsWithMergeQueue from github/githubclient/queries.graphql:40
+// PullRequestsWithMergeQueue from github/githubclient/queries.graphql:85
 func (c *gqlclient) PullRequestsWithMergeQueue(ctx context.Context,
 	repoOwner string,
 	repoName string,
@@ -126,6 +221,7 @@ func (c *gqlclient) PullRequestsWithMergeQueue(ctx context.Context,
 		pullRequests(first: 100, states: [OPEN]) {
 			nodes {
 				id
+				databaseId
 				number
 				title
 				body
@@ -145,6 +241,10 @@ func (c *gqlclient) PullRequestsWithMergeQueue(ctx context.Context,
 							oid
 							messageHeadline
 							messageBody
+							status {
+								id
+								state
+							}
 							statusCheckRollup {
 								state
 							}
@@ -195,11 +295,11 @@ type AssignableUsersRepository struct {
 }
 
 type AssignableUsersRepositoryAssignableUsers struct {
-	Nodes    *AssignableUsersRepositoryAssignableUsersNodes
+	Nodes    []*AssignableUsersRepositoryAssignableUsersNodes
 	PageInfo AssignableUsersRepositoryAssignableUsersPageInfo
 }
 
-type AssignableUsersRepositoryAssignableUsersNodes []*struct {
+type AssignableUsersRepositoryAssignableUsersNodes struct {
 	Id    string
 	Login string
 	Name  *string
@@ -215,7 +315,7 @@ type AssignableUsersResponse struct {
 	Repository *AssignableUsersRepository
 }
 
-// AssignableUsers from github/githubclient/queries.graphql:82
+// AssignableUsers from github/githubclient/queries.graphql:132
 func (c *gqlclient) AssignableUsers(ctx context.Context,
 	repoOwner string,
 	repoName string,
@@ -285,7 +385,7 @@ type CreatePullRequestResponse struct {
 	CreatePullRequest *CreatePullRequestCreatePullRequest
 }
 
-// CreatePullRequest from github/githubclient/queries.graphql:102
+// CreatePullRequest from github/githubclient/queries.graphql:152
 func (c *gqlclient) CreatePullRequest(ctx context.Context,
 	input CreatePullRequestInput,
 ) (*CreatePullRequestResponse, error) {
@@ -343,7 +443,7 @@ type UpdatePullRequestResponse struct {
 	UpdatePullRequest *UpdatePullRequestUpdatePullRequest
 }
 
-// UpdatePullRequest from github/githubclient/queries.graphql:115
+// UpdatePullRequest from github/githubclient/queries.graphql:165
 func (c *gqlclient) UpdatePullRequest(ctx context.Context,
 	input UpdatePullRequestInput,
 ) (*UpdatePullRequestResponse, error) {
@@ -400,7 +500,7 @@ type AddReviewersResponse struct {
 	RequestReviews *AddReviewersRequestReviews
 }
 
-// AddReviewers from github/githubclient/queries.graphql:127
+// AddReviewers from github/githubclient/queries.graphql:177
 func (c *gqlclient) AddReviewers(ctx context.Context,
 	input RequestReviewsInput,
 ) (*AddReviewersResponse, error) {
@@ -453,7 +553,7 @@ type CommentPullRequestResponse struct {
 	AddComment *CommentPullRequestAddComment
 }
 
-// CommentPullRequest from github/githubclient/queries.graphql:139
+// CommentPullRequest from github/githubclient/queries.graphql:189
 func (c *gqlclient) CommentPullRequest(ctx context.Context,
 	input AddCommentInput,
 ) (*CommentPullRequestResponse, error) {
@@ -508,7 +608,7 @@ type MergePullRequestResponse struct {
 	MergePullRequest *MergePullRequestMergePullRequest
 }
 
-// MergePullRequest from github/githubclient/queries.graphql:149
+// MergePullRequest from github/githubclient/queries.graphql:199
 func (c *gqlclient) MergePullRequest(ctx context.Context,
 	input MergePullRequestInput,
 ) (*MergePullRequestResponse, error) {
@@ -565,7 +665,7 @@ type AutoMergePullRequestResponse struct {
 	EnablePullRequestAutoMerge *AutoMergePullRequestEnablePullRequestAutoMerge
 }
 
-// AutoMergePullRequest from github/githubclient/queries.graphql:161
+// AutoMergePullRequest from github/githubclient/queries.graphql:211
 func (c *gqlclient) AutoMergePullRequest(ctx context.Context,
 	input EnablePullRequestAutoMergeInput,
 ) (*AutoMergePullRequestResponse, error) {
@@ -622,7 +722,7 @@ type ClosePullRequestResponse struct {
 	ClosePullRequest *ClosePullRequestClosePullRequest
 }
 
-// ClosePullRequest from github/githubclient/queries.graphql:173
+// ClosePullRequest from github/githubclient/queries.graphql:223
 func (c *gqlclient) ClosePullRequest(ctx context.Context,
 	input ClosePullRequestInput,
 ) (*ClosePullRequestResponse, error) {
@@ -671,16 +771,16 @@ type StarCheckViewer struct {
 }
 
 type StarCheckViewerStarredRepositories struct {
-	Nodes      *StarCheckViewerStarredRepositoriesNodes
-	Edges      *StarCheckViewerStarredRepositoriesEdges
+	Nodes      []*StarCheckViewerStarredRepositoriesNodes
+	Edges      []*StarCheckViewerStarredRepositoriesEdges
 	TotalCount int
 }
 
-type StarCheckViewerStarredRepositoriesNodes []*struct {
+type StarCheckViewerStarredRepositoriesNodes struct {
 	NameWithOwner string
 }
 
-type StarCheckViewerStarredRepositoriesEdges []*struct {
+type StarCheckViewerStarredRepositoriesEdges struct {
 	Cursor string
 }
 
@@ -689,7 +789,7 @@ type StarCheckResponse struct {
 	Viewer StarCheckViewer
 }
 
-// StarCheck from github/githubclient/queries.graphql:185
+// StarCheck from github/githubclient/queries.graphql:235
 func (c *gqlclient) StarCheck(ctx context.Context,
 	after *string,
 ) (*StarCheckResponse, error) {
@@ -748,7 +848,7 @@ type StarGetRepoResponse struct {
 	Repository *StarGetRepoRepository
 }
 
-// StarGetRepo from github/githubclient/queries.graphql:201
+// StarGetRepo from github/githubclient/queries.graphql:251
 func (c *gqlclient) StarGetRepo(ctx context.Context,
 	owner string,
 	name string,
@@ -801,7 +901,7 @@ type StarAddResponse struct {
 	AddStar *StarAddAddStar
 }
 
-// StarAdd from github/githubclient/queries.graphql:210
+// StarAdd from github/githubclient/queries.graphql:260
 func (c *gqlclient) StarAdd(ctx context.Context,
 	input AddStarInput,
 ) (*StarAddResponse, error) {

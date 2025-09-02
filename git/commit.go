@@ -23,6 +23,8 @@ type GitInterface interface {
 	OriginMainRef(ctx context.Context) (string, error)
 	OriginBranchRef(ctx context.Context, branch string) (string, error)
 	UnMergedCommits(ctx context.Context) ([]*object.Commit, error)
+	Rebase(ctx context.Context, remoteName, branchName string) error
+	Email() (string, error)
 }
 
 // Commit has all the git commit info

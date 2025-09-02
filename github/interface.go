@@ -5,6 +5,7 @@ import (
 
 	"github.com/ejoffe/spr/git"
 	"github.com/ejoffe/spr/github/githubclient/gen/genclient"
+	"github.com/ejoffe/spr/github/githubclient/genqlient"
 	gogithub "github.com/google/go-github/v69/github"
 )
 
@@ -17,7 +18,7 @@ type GitHubInterface interface {
 
 	// CreatePullRequest creates a pull request
 	CreatePullRequest(ctx context.Context, gitcmd git.GitInterface, info *GitHubInfo, commit git.Commit, prevCommit *git.Commit) *PullRequest
-	CreatePullRequest2(ctx context.Context, owner string, repoName string, pull *gogithub.NewPullRequest) (*gogithub.PullRequest, error)
+	CreatePullRequest2(ctx context.Context, owner string, repoName string, pull genclient.CreatePullRequestInput) (string, int, error)
 
 	// UpdatePullRequest updates a pull request with current commit
 	UpdatePullRequest(ctx context.Context, gitcmd git.GitInterface, pullRequests []*PullRequest, pr *PullRequest, commit git.Commit, prevCommit *git.Commit)
@@ -29,25 +30,14 @@ type GitHubInterface interface {
 	CommentPullRequest(ctx context.Context, pr *PullRequest, comment string)
 
 	// MergePullRequest merged the given pull request
-	MergePullRequest(ctx context.Context, pr *PullRequest, mergeMethod genclient.PullRequestMergeMethod)
-	MergePullRequest2(ctx context.Context, owner string, repo string, number int, commitMessage string, options *gogithub.PullRequestOptions) error
+	MergePullRequest(ctx context.Context, pr *PullRequest, mergeMethod genqlient.PullRequestMergeMethod) error
 
 	EditPullRequest2(ctx context.Context, owner string, repo string, number int, pull *gogithub.PullRequest) error
 
 	// ClosePullRequest closes the given pull request
-	ClosePullRequest(ctx context.Context, pr *PullRequest)
+	ClosePullRequest(ctx context.Context, pr *PullRequest) error
 
-	// ListPullRequests returns a list of pull requests for the repository
-	ListPullRequests(ctx context.Context, owner string, repo string, opts *gogithub.PullRequestListOptions) ([]*gogithub.PullRequest, error)
-
-	// GetPullRequest returns a single pull request
-	GetPullRequest(ctx context.Context, owner string, repo string, number int) (*gogithub.PullRequest, error)
-
-	// ListPullRequestReviews returns the reviews for a pull request
-	ListPullRequestReviews(ctx context.Context, owner string, repo string, number int, opts *gogithub.ListOptions) ([]*gogithub.PullRequestReview, error)
-
-	// GetCombinedStatus returns the combined status for a commit
-	GetCombinedStatus(ctx context.Context, owner string, repo string, ref string, opts *gogithub.ListOptions) (*gogithub.CombinedStatus, error)
+	PullRequestsAndStatus(ctx context.Context, repo_owner string, repo_name string) (*genqlient.PullRequestsAndStatusResponse, error)
 
 	// GetClient returns the genclient.Client
 	GetClient() genclient.Client

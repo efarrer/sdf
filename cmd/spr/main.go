@@ -41,7 +41,7 @@ func main() {
 	gitcmd = realgit.NewGitCmd(cfg)
 
 	ctx := context.Background()
-	client := githubclient.NewGitHubClient(ctx, cfg)
+	client := githubclient.NewGitHubClient(ctx, gitcmd, cfg)
 	stackedpr := spr.NewStackedPR(cfg, client, gitcmd)
 
 	detailFlag := &cli.BoolFlag{

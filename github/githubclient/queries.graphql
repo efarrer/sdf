@@ -23,6 +23,51 @@ query PullRequests(
 							oid
 							messageHeadline
 							messageBody
+              status {
+                id
+                state
+              }
+							statusCheckRollup {
+								state
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	repository(owner:$repo_owner, name:$repo_name) {
+		id
+	}
+}
+
+query PullRequestsAndStatus(
+	$repo_owner: String!,	
+	$repo_name: String!,	
+){
+	viewer {
+		login
+		pullRequests(first:100, states:[OPEN]) {
+			nodes {
+        id
+        databaseId
+				number
+				title
+				body
+				baseRefName
+				headRefName
+				mergeable
+        mergeStateStatus
+        reviewDecision
+        statusCheckRollup {
+          state
+        }
+				commits(first:100) {
+					nodes {
+						commit {
+              oid
+							messageHeadline
+							messageBody
 							statusCheckRollup {
 								state
 							}
@@ -46,6 +91,7 @@ query PullRequestsWithMergeQueue(
 		pullRequests(first:100, states:[OPEN]) {
 			nodes {
 				id
+        databaseId
 				number
 				title
 				body
@@ -65,6 +111,10 @@ query PullRequestsWithMergeQueue(
 							oid
 							messageHeadline
 							messageBody
+              status {
+                id
+                state
+              }
 							statusCheckRollup {
 								state
 							}

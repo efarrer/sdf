@@ -16,15 +16,15 @@ func ptr(i int) *int {
 	return &i
 }
 
-func testingCommits(count int, prMap map[int]int) []*internal.PRCommit {
-	commits := []*internal.PRCommit{}
+func testingCommits(count int, prMap map[int]int) []*internal.LocalCommit {
+	commits := []*internal.LocalCommit{}
 	for i := 0; i != count; i++ {
 		var prIndex *int
 		if prI, ok := prMap[i]; ok {
 			prIndex = &prI
 		}
 
-		commit := internal.PRCommit{
+		commit := internal.LocalCommit{
 			Commit: git.Commit{
 				CommitID: strings.Repeat(fmt.Sprintf("%d", i), 8),
 			},
@@ -42,7 +42,7 @@ func TestEvaluate(t *testing.T) {
 	tests := []struct {
 		desc     string
 		input    string
-		commits  []*internal.PRCommit
+		commits  []*internal.LocalCommit
 		indicies internal.Indices
 		err      error
 	}{

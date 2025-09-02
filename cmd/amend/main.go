@@ -51,7 +51,7 @@ func main() {
 
 	ctx := context.Background()
 	cfg := config_parser.ParseConfig(gitcmd)
-	client := githubclient.NewGitHubClient(ctx, cfg)
+	client := githubclient.NewGitHubClient(ctx, gitcmd, cfg)
 	gitcmd = realgit.NewGitCmd(cfg)
 
 	sd := spr.NewStackedPR(cfg, client, gitcmd)

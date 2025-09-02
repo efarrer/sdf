@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	mapset "github.com/deckarep/golang-set/v2"
+	gitconfig "github.com/go-git/go-git/v5/config"
 
 	"github.com/ejoffe/spr/config"
 	gogit "github.com/go-git/go-git/v5"
@@ -324,4 +325,26 @@ func (c *gitcmd) UnMergedCommits(ctx context.Context) ([]*object.Commit, error) 
 	})
 
 	return commits, nil
+}
+
+func (c *gitcmd) Rebase(ctx context.Context, remoteName, branchName string) error {
+	err := c.Git(
+		fmt.Sprintf("rebase %s/%s -i --autosquash --autostash",
+			remoteName,
+			branchName,
+		), nil)
+	if err != nil {
+		return fmt.Errorf("rebase failed %w", err)
+	}
+
+	return nil
+}
+
+func (c *gitcmd) Email() (string, error) {
+	cfg, err := gitconfig.LoadConfig(gitconfig.GlobalScope)
+	if err != nil {
+		return "", fmt.Errorf("getting user email %w", err)
+	}
+
+	return cfg.User.Email, nil
 }

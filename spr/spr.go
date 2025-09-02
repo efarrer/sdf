@@ -281,8 +281,6 @@ func (sd *Stackediff) MergePRSet(ctx context.Context, setIndex string) {
 	}
 	sd.profiletimer.Step("MergePRSet::AsPRSet")
 
-	// Merge the newest commit into main as it has all of the commits.
-	// Close the remaining commits
 	state, err := bl.NewReadState(ctx, sd.config, sd.gitcmd, sd.github)
 	check(err)
 	sd.profiletimer.Step("MergePRSet::NewReadState")
@@ -315,7 +313,9 @@ func (sd *Stackediff) MergePRSet(ctx context.Context, setIndex string) {
 	// We want the oldest PR first so we preserve the PR links when updating it to merge to main/master
 	slices.Reverse(commits)
 	pullRequests := bl.PullRequests(commits)
-	_, err = concurrent.SliceMapWithIndex(commits, func(cindex int, ci *bl.PRCommit) (struct{}, error) {
+	_, err = concurrent.SliceMapWithIndex(commits, func(cindex int, ci *bl.LocalCommit) (struct{}, error) {
+		// Merge the newest commit into main as it has all of the commits.
+		// Close the newest and the other commits
 		if cindex == len(commits)-1 {
 			err := gitapi.UpdatePullRequestToMain(ctx, pullRequests, ci.PullRequest, ci.Commit)
 			if err != nil {
@@ -340,6 +340,9 @@ func (sd *Stackediff) MergePRSet(ctx context.Context, setIndex string) {
 		}
 		return struct{}{}, err
 	})
+	check(err)
+
+	err = sd.gitcmd.Rebase(ctx, sd.config.Repo.GitHubRemote, sd.config.Repo.GitHubBranch)
 	check(err)
 
 	sd.profiletimer.Step("MergePRSet::NewReadState")
@@ -370,7 +373,7 @@ func (sd *Stackediff) UpdatePRSets(ctx context.Context, sel string) {
 	sd.profiletimer.Step("UpdatePRSets::NewReadState")
 
 	// Compute the indices that will be included in the updated PR
-	indices, err := selector.Evaluate(state.Commits, sel)
+	indices, err := selector.Evaluate(state.LocalCommits, sel)
 	check(err)
 	sd.profiletimer.Step("UpdatePRSets::Evaluate")
 
@@ -392,7 +395,7 @@ func (sd *Stackediff) UpdatePRSets(ctx context.Context, sel string) {
 		// We want the oldest first so we create PRs for it first
 		slices.Reverse(commits)
 		pullRequests := bl.PullRequests(commits)
-		_, err = concurrent.SliceMapWithIndex(commits, func(cindex int, ci *bl.PRCommit) (struct{}, error) {
+		_, err = concurrent.SliceMapWithIndex(commits, func(cindex int, ci *bl.LocalCommit) (struct{}, error) {
 			// Don't need to rework if no PR exists
 			if ci.PullRequest == nil {
 				return struct{}{}, err
@@ -468,7 +471,7 @@ func (sd *Stackediff) UpdatePRSets(ctx context.Context, sel string) {
 				parentBaseCommit = &commits[cindex-1].Commit
 			}
 
-			pr, err := gitapi.CreatePullRequest(ctx, ci.Commit, parentBaseCommit)
+			pr, err := gitapi.CreatePullRequest(ctx, state.RepositoryId, ci.Commit, parentBaseCommit)
 			check(err)
 			ci.PullRequest = pr
 		}
@@ -476,7 +479,7 @@ func (sd *Stackediff) UpdatePRSets(ctx context.Context, sel string) {
 		// All commits should now have PRs
 		pullRequests := bl.PullRequests(commits)
 
-		_, err = concurrent.SliceMapWithIndex(commits, func(cindex int, ci *bl.PRCommit) (struct{}, error) {
+		_, err = concurrent.SliceMapWithIndex(commits, func(cindex int, ci *bl.LocalCommit) (struct{}, error) {
 			var parentBaseCommit *git.Commit
 			if cindex != 0 {
 				parentBaseCommit = &commits[cindex-1].Commit
@@ -510,7 +513,7 @@ func (sd *Stackediff) StatusCommitsAndPRSets(ctx context.Context) {
 	}
 	sd.Printer.Printf(Header(sd.config))
 	sd.profiletimer.Step("StatusCommitsAndPRSets::PrintDetails")
-	for this := state.Head(); this != nil; this = this.Parent {
+	for this := range state.LocalCommitsIter() {
 		sd.Printer.Printf("%s\n", this.PRSetString(sd.config))
 	}
 	sd.profiletimer.Step("StatusCommitsAndPRSets::OutputStatus")

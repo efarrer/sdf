@@ -89,7 +89,7 @@ func initialize(t *testing.T, cfgfn func(*config.Config)) *resources {
 	gitcmd = realgit.NewGitCmd(cfg)
 
 	ctx := context.Background()
-	client := githubclient.NewGitHubClient(ctx, cfg)
+	client := githubclient.NewGitHubClient(ctx, gitcmd, cfg)
 	stackedpr := spr.NewStackedPR(cfg, client, gitcmd)
 
 	// Direct the output to a mock Printer so we can test against the output
@@ -101,7 +101,7 @@ func initialize(t *testing.T, cfgfn func(*config.Config)) *resources {
 	require.NoError(t, err)
 
 	gitapi := gitapi.New(cfg, gitcmd, client)
-	for _, commit := range state.Commits {
+	for _, commit := range state.LocalCommits {
 		if commit.PullRequest != nil {
 			gitapi.DeletePullRequest(ctx, commit.PullRequest)
 		}
@@ -199,7 +199,8 @@ func (r *resources) createCommits(t *testing.T, commits []commit) {
 	ctx := context.Background()
 	state, err := bl.NewReadState(ctx, r.cfg, r.gitshell, r.github)
 	require.NoError(t, err)
-	for _, commit := range state.Commits {
+	require.NoError(t, err)
+	for _, commit := range state.LocalCommits {
 		r.commitIds = append(r.commitIds, commit.CommitID)
 	}
 
@@ -261,7 +262,7 @@ func TestBasicCommitUpdateMergeWithNoSubsetPRSets(t *testing.T) {
 	})
 }
 
-func TestBasicCommitUpdateMergeWithNoSubsetPRSetsInABranch(t *testing.T) {
+func TestInABranchBasicCommitUpdateMergeWithNoSubsetPRSets(t *testing.T) {
 	ctx := context.Background()
 	remoteMain := ""
 	gitHubBranch := ""
@@ -506,13 +507,14 @@ func TestBasicCommitUpdateReOrderCommitsReUpdateMerge(t *testing.T) {
 		var output string
 		state, err := bl.NewReadState(ctx, resources.cfg, resources.gitshell, resources.github)
 		require.NoError(t, err)
+		require.NoError(t, err)
 
 		// Then reset hard
 		err = resources.gitshell.Git(fmt.Sprintf("reset --hard %s/%s", resources.cfg.Repo.GitHubRemote, resources.cfg.Repo.GitHubBranch), &output)
 		require.NoError(t, err)
 
 		// Now cherry-pick commits out of order
-		for _, commit := range state.Commits {
+		for _, commit := range state.LocalCommits {
 			err = resources.gitshell.Git(fmt.Sprintf("cherry-pick %s", commit.CommitHash), &output)
 			require.NoError(t, err)
 		}
@@ -591,15 +593,16 @@ func TestBasicCommitUpdateRemoveCommitReUpdateMerge(t *testing.T) {
 		var output string
 		state, err := bl.NewReadState(ctx, resources.cfg, resources.gitshell, resources.github)
 		require.NoError(t, err)
+		require.NoError(t, err)
 
 		// Then reset hard
 		err = resources.gitshell.Git(fmt.Sprintf("reset --hard %s/%s", resources.cfg.Repo.GitHubRemote, resources.cfg.Repo.GitHubBranch), &output)
 		require.NoError(t, err)
 
 		// Now cherry-pick only the first and last commits (not the middle)
-		err = resources.gitshell.Git(fmt.Sprintf("cherry-pick %s", state.Commits[2].CommitHash), &output)
+		err = resources.gitshell.Git(fmt.Sprintf("cherry-pick %s", state.LocalCommits[2].CommitHash), &output)
 		require.NoError(t, err)
-		err = resources.gitshell.Git(fmt.Sprintf("cherry-pick %s", state.Commits[0].CommitHash), &output)
+		err = resources.gitshell.Git(fmt.Sprintf("cherry-pick %s", state.LocalCommits[0].CommitHash), &output)
 		require.NoError(t, err)
 	})
 

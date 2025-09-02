@@ -69,21 +69,21 @@ func (c *client) isStar(ctx context.Context) (bool, error) {
 			return false, err
 		}
 
-		edgeCount := len(*resp.Viewer.StarredRepositories.Edges)
+		edgeCount := len(resp.Viewer.StarredRepositories.Edges)
 		if edgeCount == 0 {
 			log.Debug().Bool("stargazer", false).Msg("MaybeStar::isStar")
 			return false, nil
 		}
 
 		sprRepo := fmt.Sprintf("%s/%s", sprRepoOwner, sprRepoName)
-		for _, node := range *resp.Viewer.StarredRepositories.Nodes {
+		for _, node := range resp.Viewer.StarredRepositories.Nodes {
 			if node.NameWithOwner == sprRepo {
 				log.Debug().Bool("stargazer", true).Msg("MaybeStar::isStar")
 				return true, nil
 			}
 		}
 
-		edges := *resp.Viewer.StarredRepositories.Edges
+		edges := resp.Viewer.StarredRepositories.Edges
 		cursor = edges[edgeCount-1].Cursor
 
 		iteration++

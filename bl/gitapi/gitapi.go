@@ -10,11 +10,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ejoffe/spr/bl/ptrutils"
 	"github.com/ejoffe/spr/config"
 	"github.com/ejoffe/spr/git"
 	"github.com/ejoffe/spr/git/realgit"
 	"github.com/ejoffe/spr/github"
 	"github.com/ejoffe/spr/github/githubclient"
+	"github.com/ejoffe/spr/github/githubclient/gen/genclient"
+	"github.com/ejoffe/spr/github/githubclient/genqlient"
 	"github.com/go-git/go-git/v5/plumbing"
 	gogithub "github.com/google/go-github/v69/github"
 )
@@ -31,10 +34,7 @@ func New(config *config.Config, gitcmd git.GitInterface, github github.GitHubInt
 
 // DeletePullRequest deletes the pull request and the associated branch
 func (gapi GitApi) DeletePullRequest(ctx context.Context, pr *github.PullRequest) error {
-	owner := gapi.config.Repo.GitHubRepoOwner
-	repoName := gapi.config.Repo.GitHubRepoName
-
-	err := gapi.github.EditPullRequest2(ctx, owner, repoName, pr.Number, &gogithub.PullRequest{State: gogithub.Ptr("closed")})
+	err := gapi.github.ClosePullRequest(ctx, pr)
 	if err != nil {
 		return fmt.Errorf("deleting pr %d %w", pr.Number, err)
 	}
@@ -162,6 +162,7 @@ func (gapi GitApi) AppendCommitId() error {
 
 func (gapi GitApi) CreatePullRequest(
 	ctx context.Context,
+	repositoryId string,
 	commit git.Commit,
 	prevCommit *git.Commit,
 ) (*github.PullRequest, error) {
@@ -176,21 +177,23 @@ func (gapi GitApi) CreatePullRequest(
 	owner := gapi.config.Repo.GitHubRepoOwner
 	repoName := gapi.config.Repo.GitHubRepoName
 
-	resp, err := gapi.github.CreatePullRequest2(ctx, owner, repoName, &gogithub.NewPullRequest{
-		Title:    &commit.Subject,
-		Head:     &headRefName,
-		HeadRepo: &gapi.config.Repo.GitHubRepoName,
-		Base:     &baseRefName,
-		Body:     &body,
-		Draft:    gogithub.Ptr(false), // We always create draft PRs then we do an update (to link them together) with an update.
-	})
+	prInput := genclient.CreatePullRequestInput{
+		RepositoryId: repositoryId,
+		Title:        commit.Subject,
+		HeadRefName:  headRefName,
+		BaseRefName:  baseRefName,
+		Body:         &body,
+		Draft:        ptrutils.Ptr(false), // We always create draft PRs then we do an update (to link them together) with an update.
+	}
+
+	prId, prNumber, err := gapi.github.CreatePullRequest2(ctx, owner, repoName, prInput)
 	if err != nil {
 		return nil, fmt.Errorf("creating PR for commit %s: %w", commit.CommitHash, err)
 	}
 
 	pr := &github.PullRequest{
-		ID:         strconv.FormatInt(*resp.ID, 10),
-		Number:     *resp.Number,
+		Id:         prId,
+		Number:     prNumber,
 		FromBranch: headRefName,
 		ToBranch:   baseRefName,
 		Commit:     commit,
@@ -249,19 +252,20 @@ func (gapi GitApi) updatePullRequest(
 		return fmt.Errorf("getting body %w", err)
 	}
 
-	id, err := strconv.ParseInt(pr.ID, 10, 64)
+	id, err := strconv.ParseInt(pr.DatabaseId, 10, 64)
 	if err != nil {
-		return fmt.Errorf("converting ID %s to integer %w", pr.ID, err)
+		return fmt.Errorf("converting ID %s to integer %w", pr.Id, err)
 	}
+
 	title := &commit.Subject
 	owner := gapi.config.Repo.GitHubRepoOwner
 	repoName := gapi.config.Repo.GitHubRepoName
 
 	head := gogithub.PullRequestBranch{
-		Ref: gogithub.Ptr(headRefName),
+		Ref: ptrutils.Ptr(headRefName),
 	}
 	base := gogithub.PullRequestBranch{
-		Ref: gogithub.Ptr(baseRefName),
+		Ref: ptrutils.Ptr(baseRefName),
 	}
 	err = gapi.github.EditPullRequest2(ctx, owner, repoName, pr.Number, &gogithub.PullRequest{
 		ID:    &id,
@@ -282,15 +286,10 @@ func (gapi GitApi) MergePullRequest(
 	ctx context.Context,
 	pr *github.PullRequest,
 ) error {
-	owner := gapi.config.Repo.GitHubRepoOwner
-	repoName := gapi.config.Repo.GitHubRepoName
-
 	// Get the merge method
 	mergeMethod := gapi.config.Repo.MergeMethod
 
-	err := gapi.github.MergePullRequest2(ctx, owner, repoName, pr.Number, "", &gogithub.PullRequestOptions{
-		MergeMethod: string(mergeMethod),
-	})
+	err := gapi.github.MergePullRequest(ctx, pr, genqlient.PullRequestMergeMethod(strings.ToUpper(mergeMethod)))
 	if err != nil {
 		return fmt.Errorf("unable to merge %d %w", pr.Number, err)
 	}

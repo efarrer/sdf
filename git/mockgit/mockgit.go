@@ -136,6 +136,16 @@ func (m *Mock) UnMergedCommits(ctx context.Context) ([]*object.Commit, error) {
 	return nil, nil
 }
 
+func (m *Mock) Rebase(ctx context.Context, remoteName, branchName string) error {
+	m.expect(fmt.Sprintf("git Rebase %s %s", remoteName, branchName))
+	return nil
+}
+
+func (m *Mock) Email() (string, error) {
+	m.expect(fmt.Sprintf("git Email"))
+	return "", nil
+}
+
 func (m *Mock) OriginMainRef(ctx context.Context) (string, error) {
 	m.expect(fmt.Sprintf("git OriginMainRef"))
 	return "", nil
