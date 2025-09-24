@@ -1,11 +1,7 @@
 package config
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/ejoffe/rake"
-	"github.com/ejoffe/spr/github/githubclient/gen/genclient"
 )
 
 type Config struct {
@@ -82,23 +78,4 @@ func DefaultConfig() *Config {
 	cfg.User.LogGitCommands = false
 	cfg.User.LogGitHubCalls = false
 	return cfg
-}
-
-func (c Config) MergeMethod() (genclient.PullRequestMergeMethod, error) {
-	var mergeMethod genclient.PullRequestMergeMethod
-	var err error
-	switch strings.ToLower(c.Repo.MergeMethod) {
-	case "merge":
-		mergeMethod = genclient.PullRequestMergeMethod_MERGE
-	case "squash":
-		mergeMethod = genclient.PullRequestMergeMethod_SQUASH
-	case "rebase", "":
-		mergeMethod = genclient.PullRequestMergeMethod_REBASE
-	default:
-		err = fmt.Errorf(
-			`unknown merge method %q, choose from "merge", "squash", or "rebase"`,
-			c.Repo.MergeMethod,
-		)
-	}
-	return mergeMethod, err
 }
