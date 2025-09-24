@@ -10,7 +10,7 @@ import (
 	"github.com/ejoffe/rake"
 	"github.com/ejoffe/spr/config"
 	"github.com/ejoffe/spr/config/config_parser"
-	"github.com/ejoffe/spr/github/githubclient/gen/genclient"
+	"github.com/ejoffe/spr/github/githubclient/genqlient"
 	"github.com/rs/zerolog/log"
 )
 
@@ -99,7 +99,7 @@ func (c *client) addStar(ctx context.Context) {
 	resp, err := c.api.StarGetRepo(ctx, sprRepoOwner, sprRepoName)
 	check(err)
 
-	_, err = c.api.StarAdd(ctx, genclient.AddStarInput{
+	genqlient.StarAdd(ctx, c.gclient, genqlient.AddStarInput{
 		StarrableId: resp.Repository.Id,
 	})
 	check(err)
