@@ -18,7 +18,7 @@ type GitHubInterface interface {
 
 	// CreatePullRequest creates a pull request
 	CreatePullRequest(ctx context.Context, gitcmd git.GitInterface, info *GitHubInfo, commit git.Commit, prevCommit *git.Commit) *PullRequest
-	CreatePullRequest2(ctx context.Context, owner string, repoName string, pull genclient.CreatePullRequestInput) (string, int, error)
+	CreatePullRequest2(ctx context.Context, owner string, repoName string, pull genqlient.CreatePullRequestInput) (string, int, error)
 
 	// UpdatePullRequest updates a pull request with current commit
 	UpdatePullRequest(ctx context.Context, gitcmd git.GitInterface, pullRequests []*PullRequest, pr *PullRequest, commit git.Commit, prevCommit *git.Commit)

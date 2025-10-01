@@ -23,9 +23,38 @@ func TestNewState(t *testing.T) {
 	prAndStatus := &genqlient.PullRequestsAndStatusResponse{}
 	commits := []*object.Commit{}
 
-	state, err := internal.NewState(ctx, config, prAndStatus, commits)
-	require.NoError(t, err)
-	require.NotNil(t, state)
+	t.Run("smoke test", func(t *testing.T) {
+		state, err := internal.NewState(ctx, config, prAndStatus, commits)
+		require.NoError(t, err)
+		require.NotNil(t, state)
+	})
+
+	t.Run("uses parent id if set", func(t *testing.T) {
+		prAndStatus := &genqlient.PullRequestsAndStatusResponse{
+			Repository: genqlient.PullRequestsAndStatusRepository{
+				Id: "id",
+				Parent: genqlient.PullRequestsAndStatusRepositoryParentRepository{
+					Id: "parent",
+				},
+			},
+		}
+		state, err := internal.NewState(ctx, config, prAndStatus, commits)
+		require.NoError(t, err)
+		require.NotNil(t, state)
+		require.Equal(t, state.ParentRepositoryId, "parent")
+	})
+
+	t.Run("uses id as parent id if parent id not set", func(t *testing.T) {
+		prAndStatus := &genqlient.PullRequestsAndStatusResponse{
+			Repository: genqlient.PullRequestsAndStatusRepository{
+				Id: "id",
+			},
+		}
+		state, err := internal.NewState(ctx, config, prAndStatus, commits)
+		require.NoError(t, err)
+		require.NotNil(t, state)
+		require.Equal(t, state.ParentRepositoryId, "id")
+	})
 }
 
 func TestFormatSubject(t *testing.T) {

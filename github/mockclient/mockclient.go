@@ -78,7 +78,7 @@ func (c *MockClient) CreatePullRequest(ctx context.Context, gitcmd git.GitInterf
 	}
 }
 
-func (c *MockClient) CreatePullRequest2(ctx context.Context, owner string, repoName string, pull genclient.CreatePullRequestInput) (string, int, error) {
+func (c *MockClient) CreatePullRequest2(ctx context.Context, owner string, repoName string, pull genqlient.CreatePullRequestInput) (string, int, error) {
 	fmt.Printf("HUB: CreatePullRequest2\n")
 	c.expectations.GithubApi(mock.GithubExpectation{
 		Op: mock.CreatePullRequestOP,

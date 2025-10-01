@@ -44,7 +44,8 @@ type Indices struct {
 
 // State holds the state of the local commits and PRs
 type State struct {
-	RepositoryId string
+	ParentRepositoryId string
+	RepositoryId       string
 	// The 0th commit in this slice is the HEAD commit
 	LocalCommits  []*LocalCommit
 	OrphanedPRs   mapset.Set[*github.PullRequest]
@@ -183,11 +184,17 @@ func NewState(ctx context.Context, config *config.Config, prAndStatus *genqlient
 
 	SetStackedCheck(config, gitCommits)
 
+	parentId := prAndStatus.Repository.Parent.Id
+	if parentId == "" {
+		parentId = prAndStatus.Repository.Id
+	}
+
 	return &State{
-		RepositoryId:  prAndStatus.Repository.Id,
-		LocalCommits:  gitCommits,
-		OrphanedPRs:   orphanedPRs,
-		MutatedPRSets: mapset.NewSet[int](),
+		ParentRepositoryId: parentId,
+		RepositoryId:       prAndStatus.Repository.Id,
+		LocalCommits:       gitCommits,
+		OrphanedPRs:        orphanedPRs,
+		MutatedPRSets:      mapset.NewSet[int](),
 	}, nil
 }
 

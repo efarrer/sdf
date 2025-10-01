@@ -16,7 +16,6 @@ import (
 	"github.com/ejoffe/spr/git/realgit"
 	"github.com/ejoffe/spr/github"
 	"github.com/ejoffe/spr/github/githubclient"
-	"github.com/ejoffe/spr/github/githubclient/gen/genclient"
 	"github.com/ejoffe/spr/github/githubclient/genqlient"
 	"github.com/go-git/go-git/v5/plumbing"
 	gogithub "github.com/google/go-github/v69/github"
@@ -162,6 +161,7 @@ func (gapi GitApi) AppendCommitId() error {
 
 func (gapi GitApi) CreatePullRequest(
 	ctx context.Context,
+	headRepositoryId string,
 	repositoryId string,
 	commit git.Commit,
 	prevCommit *git.Commit,
@@ -177,13 +177,14 @@ func (gapi GitApi) CreatePullRequest(
 	owner := gapi.config.Repo.GitHubRepoOwner
 	repoName := gapi.config.Repo.GitHubRepoName
 
-	prInput := genclient.CreatePullRequestInput{
-		RepositoryId: repositoryId,
-		Title:        commit.Subject,
-		HeadRefName:  headRefName,
-		BaseRefName:  baseRefName,
-		Body:         &body,
-		Draft:        ptrutils.Ptr(false), // We always create draft PRs then we do an update (to link them together) with an update.
+	prInput := genqlient.CreatePullRequestInput{
+		HeadRepositoryId: headRepositoryId,
+		RepositoryId:     repositoryId,
+		Title:            commit.Subject,
+		HeadRefName:      headRefName,
+		BaseRefName:      baseRefName,
+		Body:             body,
+		Draft:            false, // We always create draft PRs then we do an update (to link them together) with an update.
 	}
 
 	prId, prNumber, err := gapi.github.CreatePullRequest2(ctx, owner, repoName, prInput)

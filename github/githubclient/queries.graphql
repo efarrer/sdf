@@ -38,6 +38,9 @@ query PullRequests(
 	}
 	repository(owner:$repo_owner, name:$repo_name) {
 		id
+    parent {
+      id
+    }
 	}
 }
 
@@ -79,6 +82,9 @@ query PullRequestsAndStatus(
 	}
 	repository(owner:$repo_owner, name:$repo_name) {
 		id
+    parent {
+      id
+    }
 	}
 }
 

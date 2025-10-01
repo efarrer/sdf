@@ -362,8 +362,8 @@ func (c *client) CreatePullRequest(ctx context.Context, gitcmd git.GitInterface,
 	return pr
 }
 
-func (c *client) CreatePullRequest2(ctx context.Context, owner string, repoName string, pull genclient.CreatePullRequestInput) (string, int, error) {
-	resp, err := c.api.CreatePullRequest(ctx, pull)
+func (c *client) CreatePullRequest2(ctx context.Context, owner string, repoName string, pull genqlient.CreatePullRequestInput) (string, int, error) {
+	resp, err := genqlient.CreatePullRequest(ctx, c.gclient, pull)
 	if err != nil {
 		return "", 0, err
 	}

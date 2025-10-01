@@ -471,7 +471,7 @@ func (sd *Stackediff) UpdatePRSets(ctx context.Context, sel string) {
 				parentBaseCommit = &commits[cindex-1].Commit
 			}
 
-			pr, err := gitapi.CreatePullRequest(ctx, state.RepositoryId, ci.Commit, parentBaseCommit)
+			pr, err := gitapi.CreatePullRequest(ctx, state.ParentRepositoryId, state.RepositoryId, ci.Commit, parentBaseCommit)
 			check(err)
 			ci.PullRequest = pr
 		}
