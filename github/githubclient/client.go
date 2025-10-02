@@ -502,24 +502,23 @@ func (c *client) UpdatePullRequest(ctx context.Context, gitcmd git.GitInterface,
 			log.Fatal().Err(err).Msg("failed to insert body into PR template")
 		}
 	}
-	title := &commit.Subject
 
-	input := genclient.UpdatePullRequestInput{
+	input := genqlient.UpdatePullRequestInput{
 		PullRequestId: pr.DatabaseId,
-		Title:         title,
-		Body:          &body,
+		Title:         commit.Subject,
+		Body:          body,
 	}
 
 	if !pr.InQueue {
-		input.BaseRefName = &baseRefName
+		input.BaseRefName = baseRefName
 	}
 
 	if c.config.User.PreserveTitleAndBody {
-		input.Title = nil
-		input.Body = nil
+		input.Title = pr.Title
+		input.Body = pr.Body
 	}
 
-	_, err := c.api.UpdatePullRequest(ctx, input)
+	_, err := genqlient.UpdatePullRequest(ctx, c.gclient, input)
 
 	if err != nil {
 		log.Fatal().
