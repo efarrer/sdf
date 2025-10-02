@@ -62,9 +62,8 @@ func (c *client) MaybeStar(ctx context.Context, cfg *config.Config) {
 
 func (c *client) isStar(ctx context.Context) (bool, error) {
 	iteration := 0
-	cursor := ""
 	for {
-		resp, err := c.api.StarCheck(ctx, &cursor)
+		resp, err := genqlient.StarCheck(ctx, c.gclient, "")
 		if err != nil {
 			return false, err
 		}
@@ -82,9 +81,6 @@ func (c *client) isStar(ctx context.Context) (bool, error) {
 				return true, nil
 			}
 		}
-
-		edges := resp.Viewer.StarredRepositories.Edges
-		cursor = edges[edgeCount-1].Cursor
 
 		iteration++
 		if iteration > 10 {
