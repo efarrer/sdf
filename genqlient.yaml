@@ -1,0 +1,9 @@
+# Default genqlient config; for full documentation see:
+# https://github.com/Khan/genqlient/blob/main/docs/genqlient.yaml
+schema: github/githubclient/github.schema.graphql
+operations:
+  - github/githubclient/queries.graphql
+generated: github/githubclient/genqlient/generated.go
+bindings:
+  GitObjectID:
+    type: string
