@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/ejoffe/spr/git"
-	"github.com/ejoffe/spr/github/githubclient/gen/genclient"
 	"github.com/ejoffe/spr/github/githubclient/genqlient"
 	gogithub "github.com/google/go-github/v69/github"
 )
@@ -38,9 +37,6 @@ type GitHubInterface interface {
 	ClosePullRequest(ctx context.Context, pr *PullRequest) error
 
 	PullRequestsAndStatus(ctx context.Context, repo_owner string, repo_name string) (*genqlient.PullRequestsAndStatusResponse, error)
-
-	// GetClient returns the genclient.Client
-	GetClient() genclient.Client
 }
 
 type GitHubInfo struct {

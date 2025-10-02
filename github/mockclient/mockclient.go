@@ -6,7 +6,6 @@ import (
 
 	"github.com/ejoffe/spr/git"
 	"github.com/ejoffe/spr/github"
-	"github.com/ejoffe/spr/github/githubclient/gen/genclient"
 	"github.com/ejoffe/spr/github/githubclient/genqlient"
 	"github.com/ejoffe/spr/mock"
 	gogithub "github.com/google/go-github/v69/github"
@@ -147,11 +146,6 @@ func (c *MockClient) PullRequestsAndStatus(ctx_ context.Context, repo_owner stri
 		Op: mock.ClosePullRequestAndStatusOP,
 	})
 	return nil, nil
-}
-
-func (c *MockClient) GetClient() genclient.Client {
-	// This client can't be used it is just to satisfy the interface
-	return genclient.NewClient("", nil)
 }
 
 func (c *MockClient) ExpectGetInfo() {

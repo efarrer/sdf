@@ -646,9 +646,6 @@ func (c *client) ClosePullRequest(ctx context.Context, pr *github.PullRequest) e
 func (c *client) PullRequestsAndStatus(ctx context.Context, repo_owner string, repo_name string) (*genqlient.PullRequestsAndStatusResponse, error) {
 	return genqlient.PullRequestsAndStatus(ctx, c.gclient, repo_owner, repo_name)
 }
-func (c *client) GetClient() genclient.Client {
-	return c.api
-}
 
 func check(err error) {
 	if err != nil {
