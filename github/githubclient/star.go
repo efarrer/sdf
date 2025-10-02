@@ -92,7 +92,7 @@ func (c *client) isStar(ctx context.Context) (bool, error) {
 }
 
 func (c *client) addStar(ctx context.Context) {
-	resp, err := c.api.StarGetRepo(ctx, sprRepoOwner, sprRepoName)
+	resp, err := genqlient.StarGetRepo(ctx, c.gclient, sprRepoOwner, sprRepoName)
 	check(err)
 
 	genqlient.StarAdd(ctx, c.gclient, genqlient.AddStarInput{
