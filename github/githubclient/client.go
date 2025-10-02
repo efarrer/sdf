@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -15,11 +14,9 @@ import (
 	"github.com/ejoffe/spr/config"
 	"github.com/ejoffe/spr/git"
 	"github.com/ejoffe/spr/github"
-	"github.com/ejoffe/spr/github/githubclient/gen/genclient"
 	"github.com/ejoffe/spr/github/githubclient/genqlient"
 	gogithub "github.com/google/go-github/v69/github"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/oauth2"
 )
 
 type authedTransport struct {
@@ -32,7 +29,6 @@ func (t *authedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return t.wrapped.RoundTrip(req)
 }
 
-//go:generate go run github.com/inigolabs/fezzik --config fezzik.yaml
 //go:generate go run github.com/Khan/genqlient  ../../genqlient.yaml
 
 const tokenHelpText = `
@@ -59,12 +55,7 @@ func NewGitHubClient(ctx context.Context, git git.GitInterface, config *config.C
 		fmt.Printf(tokenHelpText, config.Repo.GitHubHost)
 		os.Exit(3)
 	}
-	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: token},
-	)
-	tc := oauth2.NewClient(ctx, ts)
 
-	var api genclient.Client
 	var gclient graphql.Client
 	if strings.HasSuffix(config.Repo.GitHubHost, "github.com") {
 
@@ -75,25 +66,10 @@ func NewGitHubClient(ctx context.Context, git git.GitInterface, config *config.C
 			},
 		}
 		gclient = graphql.NewClient("https://api.github.com/graphql", &httpClient)
-
-		api = genclient.NewClient("https://api.github.com/graphql", tc)
-	} else {
-		var scheme, host string
-		gitHubRemoteUrl, err := url.Parse(config.Repo.GitHubHost)
-		check(err)
-		if gitHubRemoteUrl.Host == "" {
-			host = config.Repo.GitHubHost
-			scheme = "https"
-		} else {
-			host = gitHubRemoteUrl.Host
-			scheme = gitHubRemoteUrl.Scheme
-		}
-		api = genclient.NewClient(fmt.Sprintf("%s://%s/api/graphql", scheme, host), tc)
 	}
 	goghclient := gogithub.NewClient(nil).WithAuthToken(github.FindToken(config.Repo.GitHubHost))
 	return &client{
 		config:     config,
-		api:        api,
 		goghclient: goghclient,
 		gclient:    gclient,
 		git:        git,
@@ -102,7 +78,6 @@ func NewGitHubClient(ctx context.Context, git git.GitInterface, config *config.C
 
 type client struct {
 	config     *config.Config
-	api        genclient.Client
 	goghclient *gogithub.Client
 	gclient    graphql.Client
 	git        git.GitInterface
