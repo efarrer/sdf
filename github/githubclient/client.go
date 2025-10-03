@@ -591,12 +591,6 @@ func (c *client) MergePullRequest(ctx context.Context,
 	return nil
 }
 
-func (c *client) MergePullRequest2(ctx context.Context, owner string, repoName string, number int, commitMessage string, options *gogithub.PullRequestOptions) error {
-	_, _, err := c.goghclient.PullRequests.Merge(ctx, owner, repoName, number, commitMessage, options)
-
-	return err
-}
-
 func (c *client) EditPullRequest2(ctx context.Context, owner string, repoName string, number int, pull *gogithub.PullRequest) error {
 	_, _, err := c.goghclient.PullRequests.Edit(ctx, owner, repoName, number, pull)
 	return err
