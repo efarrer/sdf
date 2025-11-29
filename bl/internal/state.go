@@ -142,16 +142,6 @@ func (prc LocalCommit) PRSetString(config *config.Config) string {
 	return github.TrimToTerminal(config, line)
 }
 
-// Generic function to convert a nil pointer to its zero value.
-// Works for any type.
-func derefOrDefault[T any](ptr *T) T {
-	if ptr == nil {
-		var zero T // Zero value of the type T
-		return zero
-	}
-	return *ptr
-}
-
 // NewReadState pulls git and github information and constructs the state of the local unmerged commits.
 // The resulting State contains the ordered and linked commits along with their associated PRs
 func NewReadState(ctx context.Context, config *config.Config, gitcmd git.GitInterface, github github.GitHubInterface) (*State, error) {
