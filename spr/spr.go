@@ -358,7 +358,7 @@ func (sd *Stackediff) UpdatePRSets(ctx context.Context, sel string) {
 	gitapi := gitapi.New(sd.config, sd.gitcmd, sd.github)
 
 	// Add the commit-id to any commits that don't have it yet.
-	gitapi.AppendCommitId()
+	sd.gitcmd.AppendCommitId()
 	sd.profiletimer.Step("UpdatePRSets::AppndCommitId")
 
 	// Fetch/Prune from github remote
@@ -441,7 +441,7 @@ func (sd *Stackediff) UpdatePRSets(ctx context.Context, sel string) {
 			if err != nil {
 				// Try to clean up any previously created branches.
 				for _, createdBranch := range createdBranches {
-					gitapi.DeleteRemoteBranch(ctx, createdBranch)
+					sd.gitcmd.DeleteRemoteBranch(ctx, createdBranch)
 				}
 			}
 			check(err)

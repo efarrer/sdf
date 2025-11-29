@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path"
 	"strconv"
 	"strings"
@@ -17,7 +16,6 @@ import (
 	"github.com/ejoffe/spr/github"
 	"github.com/ejoffe/spr/github/githubclient"
 	"github.com/ejoffe/spr/github/githubclient/genqlient"
-	"github.com/go-git/go-git/v5/plumbing"
 	gogithub "github.com/google/go-github/v69/github"
 )
 
@@ -38,22 +36,7 @@ func (gapi GitApi) DeletePullRequest(ctx context.Context, pr *github.PullRequest
 		return fmt.Errorf("deleting pr %d %w", pr.Number, err)
 	}
 
-	return gapi.DeleteRemoteBranch(ctx, pr.FromBranch)
-}
-
-func (gapi GitApi) DeleteRemoteBranch(ctx context.Context, branch string) error {
-	remoteName := gapi.config.Repo.GitHubRemote
-
-	// Construct the reference name for branch
-	refName := plumbing.NewBranchReferenceName(branch)
-
-	// Delete the remote branch
-	err := gapi.gitcmd.Push(remoteName, []string{fmt.Sprintf(":%s", refName)})
-	if err != nil {
-		return fmt.Errorf("removing remote branch %s %w", branch, err)
-	}
-
-	return nil
+	return gapi.gitcmd.DeleteRemoteBranch(ctx, pr.FromBranch)
 }
 
 // CreateRemoteBranchWithCherryPick creates the remote branch `branchname` on `destBranchRef` and cherry-picks the sha
@@ -132,28 +115,6 @@ func (gapi GitApi) CreateRemoteBranchWithCherryPick(ctx context.Context, branchN
 	err = gitworktreeshell.Git(fmt.Sprintf("push --force %s %s:%s", gapi.config.Repo.GitHubRemote, branchName, branchName), nil)
 	if err != nil {
 		return fmt.Errorf("pushing %s to %s %w", branchName, gapi.config.Repo.GitHubRemote, err)
-	}
-
-	return nil
-}
-
-func (gapi GitApi) AppendCommitId() error {
-	// The "github.com/go-git/go-git/" doesn't (easily) support updating a commit message so we have to do this by
-	// shelling out to the command line
-	gitshell := realgit.NewGitCmd(gapi.config)
-
-	rewordPath, err := exec.LookPath("spr_reword_helper")
-	if err != nil {
-		fmt.Errorf("can't find spr_reword_helper %w", err)
-	}
-	rebaseCommand := fmt.Sprintf(
-		"rebase %s/%s -i --autosquash --autostash",
-		gapi.config.Repo.GitHubRemote,
-		gapi.config.Repo.GitHubBranch,
-	)
-	err = gitshell.GitWithEditor(rebaseCommand, nil, rewordPath)
-	if err != nil {
-		fmt.Errorf("can't execute spr_reword_helper %w", err)
 	}
 
 	return nil

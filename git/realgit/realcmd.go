@@ -97,6 +97,24 @@ func (c *gitcmd) MustGit(argStr string, output *string) {
 	}
 }
 
+func (c gitcmd) AppendCommitId() error {
+	rewordPath, err := exec.LookPath("spr_reword_helper")
+	if err != nil {
+		fmt.Errorf("can't find spr_reword_helper %w", err)
+	}
+	rebaseCommand := fmt.Sprintf(
+		"rebase %s/%s -i --autosquash --autostash",
+		c.config.Repo.GitHubRemote,
+		c.config.Repo.GitHubBranch,
+	)
+	err = c.GitWithEditor(rebaseCommand, nil, rewordPath)
+	if err != nil {
+		fmt.Errorf("can't execute spr_reword_helper %w", err)
+	}
+
+	return nil
+}
+
 func (c *gitcmd) GitWithEditor(argStr string, output *string, editorCmd string) error {
 	// runs a git command
 	//  if output is not nil it will be set to the output of the command

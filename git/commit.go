@@ -9,6 +9,7 @@ import (
 )
 
 type GitInterface interface {
+	AppendCommitId() error
 	GitWithEditor(args string, output *string, editorCmd string) error
 	Git(args string, output *string) error
 	MustGit(args string, output *string)

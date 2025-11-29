@@ -28,6 +28,10 @@ func (m *Mock) Git(args string, output *string) error {
 	return nil
 }
 
+func (m *Mock) AppendCommitId() error {
+	return m.Git(fmt.Sprintf("AppendCommitId"), nil)
+}
+
 func (m *Mock) DeleteRemoteBranch(ctx context.Context, branch string) error {
 	return m.Git(fmt.Sprintf("DeleteRemoteBranch(%s)", branch), nil)
 }
